@@ -1,0 +1,135 @@
+{
+  "realm": "lms-realm",
+  "displayName": "LMS Platform",
+  "displayNameHtml": "<strong>LMS Platform</strong>",
+  "enabled": true,
+  "loginWithEmailAllowed": true,
+  "registrationAllowed": false,
+  "resetPasswordAllowed": true,
+  "rememberMe": true,
+  "verifyEmail": false,
+  "sslRequired": "none",
+  "accessTokenLifespan": 900,
+  "refreshTokenMaxReuse": 0,
+  "ssoSessionIdleTimeout": 1800,
+  "ssoSessionMaxLifespan": 36000,
+
+  "roles": {
+    "realm": [
+      {
+        "name": "ADMIN",
+        "description": "System Administrator — full access",
+        "composite": false,
+        "clientRole": false
+      },
+      {
+        "name": "INSTRUCTOR",
+        "description": "Course Instructor — can create and manage courses",
+        "composite": false,
+        "clientRole": false
+      },
+      {
+        "name": "STUDENT",
+        "description": "Student — can enroll and view courses",
+        "composite": false,
+        "clientRole": false
+      }
+    ]
+  },
+
+  "clients": [
+    {
+      "clientId": "lms-frontend",
+      "name": "LMS React Frontend (Public Client)",
+      "description": "Used by React app and Postman. Direct grant enabled for testing.",
+      "enabled": true,
+      "protocol": "openid-connect",
+      "publicClient": true,
+      "bearerOnly": false,
+      "standardFlowEnabled": true,
+      "implicitFlowEnabled": false,
+      "directAccessGrantsEnabled": true,
+      "serviceAccountsEnabled": false,
+      "authorizationServicesEnabled": false,
+      "redirectUris": [
+        "http://localhost:3000/*",
+        "http://localhost:8080/*"
+      ],
+      "webOrigins": [
+        "http://localhost:3000",
+        "http://localhost:8080"
+      ],
+      "attributes": {
+        "post.logout.redirect.uris": "http://localhost:3000/*"
+      }
+    },
+    {
+      "clientId": "course-service",
+      "name": "Course Microservice (Confidential)",
+      "description": "Resource server — validates bearer tokens. Service accounts enabled for M2M calls.",
+      "enabled": true,
+      "protocol": "openid-connect",
+      "publicClient": false,
+      "bearerOnly": false,
+      "standardFlowEnabled": false,
+      "implicitFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "serviceAccountsEnabled": true,
+      "authorizationServicesEnabled": false,
+      "secret": "course-service-secret-change-in-production",
+      "redirectUris": [],
+      "webOrigins": []
+    }
+  ],
+
+  "users": [
+    {
+      "username": "admin@lms.edu.vn",
+      "email": "admin@lms.edu.vn",
+      "firstName": "System",
+      "lastName": "Admin",
+      "enabled": true,
+      "emailVerified": true,
+      "credentials": [
+        {
+          "type": "password",
+          "value": "Admin@123",
+          "temporary": false
+        }
+      ],
+      "realmRoles": ["ADMIN"]
+    },
+    {
+      "username": "instructor@lms.edu.vn",
+      "email": "instructor@lms.edu.vn",
+      "firstName": "Nguyen Van",
+      "lastName": "A",
+      "enabled": true,
+      "emailVerified": true,
+      "credentials": [
+        {
+          "type": "password",
+          "value": "Instructor@123",
+          "temporary": false
+        }
+      ],
+      "realmRoles": ["INSTRUCTOR"]
+    },
+    {
+      "username": "student@lms.edu.vn",
+      "email": "student@lms.edu.vn",
+      "firstName": "Tran",
+      "lastName": "B",
+      "enabled": true,
+      "emailVerified": true,
+      "credentials": [
+        {
+          "type": "password",
+          "value": "Student@123",
+          "temporary": false
+        }
+      ],
+      "realmRoles": ["STUDENT"]
+    }
+  ]
+}

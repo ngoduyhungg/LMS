@@ -1,0 +1,7 @@
+/mvnw text eol=lf
+*.cmd text eol=crlf
+
+# Shell scripts and Dockerfiles MUST use LF (Unix) line endings.
+# CRLF endings cause "/bin/bash^M: bad interpreter" errors in Linux containers.
+*.sh  text eol=lf
+Dockerfile text eol=lf
