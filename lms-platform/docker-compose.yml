@@ -1,0 +1,259 @@
+# =============================================================================
+# LMS Platform — Docker Compose Infrastructure
+# Stack: PostgreSQL 16 · Keycloak 26.2.0 · Jaeger · Prometheus · Grafana
+#
+# QUICK START:
+#   1. git update-index --chmod=+x docker/postgres/init-multiple-dbs.sh
+#   2. docker compose build keycloak
+#   3. docker compose up -d
+#   4. docker compose logs -f keycloak   (wait for "Keycloak ... started")
+# =============================================================================
+
+services:
+
+  # ============================================================
+  # POSTGRESQL 16
+  # One instance, multiple logical databases (microservice isolation).
+  # init-multiple-dbs.sh creates: keycloak_db | course_db | enrollment_db | notification_db
+  # Host port 5433 → container port 5432 (avoids conflict with local PostgreSQL).
+  # ============================================================
+  postgres:
+    image: postgres:16-alpine
+    container_name: lms-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: postgres
+      POSTGRES_MULTIPLE_DATABASES: keycloak_db,course_db,enrollment_db,notification_db
+    volumes:
+      - lms_postgres_data:/var/lib/postgresql/data
+      # Prefix "10-" ensures this script runs before any other init scripts.
+      # The script MUST have execute permission — see init-multiple-dbs.sh header.
+      - ./docker/postgres/init-multiple-dbs.sh:/docker-entrypoint-initdb.d/10-init-multiple-dbs.sh:ro
+    ports:
+      - "5433:5432"
+    networks:
+      - lms-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 15s
+
+  # ============================================================
+  # JAEGER — All-in-one distributed tracing backend
+  # Must start BEFORE Keycloak so the OTLP endpoint is ready
+  # when Keycloak begins emitting spans on startup.
+  #
+  # Key ports:
+  #   16686 → Jaeger Query UI
+  #   4317  → OTLP/gRPC receiver  (used by KC_TRACING_ENDPOINT)
+  #   4318  → OTLP/HTTP receiver
+  #   14268 → Jaeger Thrift HTTP  (legacy; kept for compatibility)
+  #   14269 → Admin/health port   (used by healthcheck; NOT exposed to host)
+  # ============================================================
+  jaeger:
+    image: jaegertracing/all-in-one:1.62.0
+    container_name: lms-jaeger
+    restart: unless-stopped
+    environment:
+      COLLECTOR_OTLP_ENABLED: "true"
+      SPAN_STORAGE_TYPE: memory
+      MEMORY_MAX_TRACES: "10000"
+    ports:
+      - "16686:16686"
+      - "4317:4317"
+      - "4318:4318"
+      - "14268:14268"
+      # 14269 (admin) intentionally NOT exposed — healthcheck uses it internally
+    networks:
+      - lms-network
+    healthcheck:
+      # Port 14269 is Jaeger's dedicated admin/health port.
+      # It exists inside the container even though it is not exposed to the host.
+      # This endpoint returns HTTP 200 when Jaeger is ready.
+      test: ["CMD-SHELL", "wget -qO- http://localhost:14269/ > /dev/null 2>&1 || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  # ============================================================
+  # KEYCLOAK 26.2.0 — Identity & Access Management
+  #
+  # CUSTOM IMAGE (docker/keycloak/Dockerfile):
+  #   The Dockerfile runs `kc.sh build` with KC_TRACING_ENABLED=true
+  #   baked in as a build-time option. This prevents the error:
+  #     "build time option UNAVAILABLE: tracing-enabled"
+  #   and its cascading "quarkus.datasource.jdbc.telemetry" exception.
+  #
+  # REALM IMPORT:
+  #   --import-realm loads files from /opt/keycloak/data/import/ on
+  #   FIRST startup only. If the realm already exists in keycloak_db,
+  #   import is silently skipped.
+  #
+  # "SESSION NOT BOUND TO A REALM" FIX:
+  #   Root cause: Keycloak 26 introduced full support for the Organizations
+  #   feature. Its event listener fires during realm bootstrap/import and
+  #   tries to resolve the realm from a session context that is not yet
+  #   fully initialized — throwing "Session not bound to a realm".
+  #   This is a documented KC 26 regression (GitHub issue tracker).
+  #   Fix: --features-disabled=organization
+  #   Impact: disables only the B2B multi-tenancy Organizations feature.
+  #   Standard RBAC (ADMIN / INSTRUCTOR / STUDENT roles, JWT, OIDC) is
+  #   completely unaffected.
+  #
+  # MANAGEMENT PORT (9000):
+  #   Since KC 26, health and metrics endpoints moved from the main HTTP
+  #   port (8080) to a dedicated management port (9000). The healthcheck
+  #   below uses port 9000 accordingly.
+  #
+  # Admin UI: http://localhost:8180/admin   (admin / admin)
+  # JWKS URI: http://localhost:8180/realms/lms-realm/protocol/openid-connect/certs
+  # ============================================================
+  keycloak:
+    build:
+      context: ./docker/keycloak
+      dockerfile: Dockerfile
+    image: lms-keycloak:26.2.0
+    container_name: lms-keycloak
+    restart: unless-stopped
+    command: start-dev --import-realm --features-disabled=organization
+
+    environment:
+      # ── Database ──────────────────────────────────────────────
+      KC_DB: postgres
+      KC_DB_URL: jdbc:postgresql://postgres:5432/keycloak_db
+      KC_DB_USERNAME: postgres
+      KC_DB_PASSWORD: postgres
+      # KC_DB_SCHEMA omitted — "public" is the PostgreSQL default
+
+      # ── Admin credentials ──────────────────────────────────────
+      # KEYCLOAK_ADMIN / KEYCLOAK_ADMIN_PASSWORD are the correct, current
+      # env vars for the initial admin user. NOT deprecated.
+      # (The deprecated ones from the Wildfly era were KEYCLOAK_USER /
+      # KEYCLOAK_PASSWORD, removed in Keycloak 17.)
+      KEYCLOAK_ADMIN: admin
+      KEYCLOAK_ADMIN_PASSWORD: admin
+
+      # ── HTTP / Hostname ────────────────────────────────────────
+      # In start-dev, Keycloak auto-detects the hostname from the request.
+      # No KC_HOSTNAME needed for local development.
+      # REMOVED (Hostname v1 API, deleted in KC 26):
+      #   KC_HOSTNAME_PORT, KC_HOSTNAME_STRICT, KC_HOSTNAME_STRICT_HTTPS
+      KC_HTTP_ENABLED: "true"
+      KC_HTTP_PORT: "8080"
+
+      # ── Observability features ─────────────────────────────────
+      KC_HEALTH_ENABLED: "true"
+      KC_METRICS_ENABLED: "true"
+      KC_LOG_LEVEL: INFO
+
+      # ── OpenTelemetry Tracing ──────────────────────────────────
+      # KC_TRACING_ENABLED / KC_TRACING_ENDPOINT are RUNTIME options
+      # that are safe to set here because KC_TRACING_ENABLED=true was
+      # already baked in at BUILD TIME by the Dockerfile.
+      #
+      # Endpoint points to the Jaeger container (internal DNS, port 4317 gRPC).
+      KC_TRACING_ENABLED: "true"
+      KC_TRACING_ENDPOINT: "http://jaeger:4317"
+
+      # Service name in telemetry/traces:
+      # KC_TRACING_SERVICE_NAME was deprecated in KC 26.2.
+      # KC_TELEMETRY_SERVICE_NAME is the current replacement.
+      # We set only the current name; the old one is omitted.
+      KC_TELEMETRY_SERVICE_NAME: "keycloak"
+
+    volumes:
+      - ./docker/keycloak/realms:/opt/keycloak/data/import:ro
+
+    ports:
+      - "8180:8080"
+      # Port 9000 (management) NOT exposed to host — accessed internally only.
+      # Expose it if you need to query /health or /metrics from the host machine.
+
+    depends_on:
+      postgres:
+        condition: service_healthy
+      jaeger:
+        condition: service_healthy
+
+    networks:
+      - lms-network
+
+    healthcheck:
+      # Keycloak 26 moved health endpoints to the management port (9000).
+      # /health/ready returns HTTP 200 when KC is fully started.
+      # KC_HEALTH_ENABLED=true must be set for this endpoint to exist.
+      # The Keycloak 26.2 base image includes `curl`.
+      test: ["CMD-SHELL", "curl -f http://localhost:9000/health/ready || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 10
+      start_period: 120s
+
+  # ============================================================
+  # PROMETHEUS — Metrics scraper
+  # UI: http://localhost:9090
+  # ============================================================
+  prometheus:
+    image: prom/prometheus:v2.55.1
+    container_name: lms-prometheus
+    restart: unless-stopped
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--storage.tsdb.retention.time=7d'
+      - '--web.enable-lifecycle'
+    volumes:
+      - ./docker/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - lms_prometheus_data:/prometheus
+    ports:
+      - "9090:9090"
+    networks:
+      - lms-network
+    depends_on:
+      - jaeger
+
+  # ============================================================
+  # GRAFANA — Dashboards
+  # UI: http://localhost:3001  (admin / admin)
+  # ============================================================
+  grafana:
+    image: grafana/grafana:11.3.1
+    container_name: lms-grafana
+    restart: unless-stopped
+    environment:
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: admin
+      GF_USERS_ALLOW_SIGN_UP: "false"
+    volumes:
+      - lms_grafana_data:/var/lib/grafana
+      - ./docker/grafana/provisioning:/etc/grafana/provisioning:ro
+    ports:
+      - "3001:3000"
+    depends_on:
+      - prometheus
+    networks:
+      - lms-network
+
+# ============================================================
+# VOLUMES
+# ============================================================
+volumes:
+  lms_postgres_data:
+    driver: local
+  lms_prometheus_data:
+    driver: local
+  lms_grafana_data:
+    driver: local
+
+# ============================================================
+# NETWORKS
+# ============================================================
+networks:
+  lms-network:
+    name: lms-platform-network
+    driver: bridge
