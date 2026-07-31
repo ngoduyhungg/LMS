@@ -1,0 +1,19 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: api-gateway
+  cloud:
+    gateway:
+      routes:
+        - id: course-service-route
+          uri: http://localhost:8081
+          predicates:
+            - Path=/api/courses/**
+
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          jwk-set-uri: http://localhost:8180/realms/lms-realm/protocol/openid-connect/certs

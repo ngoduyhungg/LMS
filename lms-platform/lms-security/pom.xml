@@ -1,0 +1,112 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>com.lms</groupId>
+        <artifactId>lms-platform</artifactId>
+        <version>1.0.0-SNAPSHOT</version>
+        <relativePath>../pom.xml</relativePath>
+    </parent>
+
+    <artifactId>lms-security</artifactId>
+    <name>LMS Security — Reusable Spring Boot Security Starter</name>
+    <description>
+        Auto-configures Keycloak JWT authentication, role-based access control,
+        and the @AuthenticatedUser argument resolver for all LMS microservices.
+        Add this module as a dependency — zero additional configuration required.
+    </description>
+
+    <dependencies>
+
+        <!-- ================================================================
+             SPRING SECURITY — Core security framework
+             Provides: SecurityFilterChain, HttpSecurity DSL,
+             @EnableWebSecurity, @PreAuthorize, SecurityContextHolder.
+        ================================================================ -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-security</artifactId>
+        </dependency>
+
+        <!-- ================================================================
+             OAUTH2 RESOURCE SERVER — JWT validation
+             Provides: JwtAuthenticationConverter, JwtDecoder,
+             .oauth2ResourceServer() DSL, JwtAuthenticationToken.
+             Needed by: KeycloakJwtConverter, CurrentUserProvider.
+        ================================================================ -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-oauth2-resource-server</artifactId>
+        </dependency>
+
+        <!-- ================================================================
+             SPRING WEB MVC — Controller argument resolution
+             Provides: HandlerMethodArgumentResolver, WebMvcConfigurer,
+             DispatcherServlet (used in @ConditionalOnClass guard).
+             Needed by: CurrentUserArgumentResolver, SecurityAutoConfiguration.
+             Scope: provided — the consumer microservice brings spring-webmvc
+             via its own spring-boot-starter-web dependency.
+        ================================================================ -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-web</artifactId>
+            <scope>provided</scope>
+        </dependency>
+
+        <!-- ================================================================
+             SPRING BOOT AUTOCONFIGURE — @AutoConfiguration, @Conditional*
+             Provides: AutoConfiguration, ConditionalOnMissingBean,
+             ConditionalOnClass, ConditionalOnWebApplication.
+             Without this, the .imports file registration does nothing.
+             Scope: provided — spring-boot-starter-autoconfigure is already
+             transitively included by every Spring Boot application.
+        ================================================================ -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-autoconfigure</artifactId>
+            <scope>provided</scope>
+        </dependency>
+
+        <!-- ================================================================
+             JAKARTA SERVLET API — HttpServletRequest / HttpServletResponse
+             Needed by: CustomAuthenticationEntryPoint, CustomAccessDeniedHandler.
+             Scope: provided — the servlet container (embedded Tomcat) supplies
+             this at runtime; we only need it at compile time.
+        ================================================================ -->
+        <dependency>
+            <groupId>jakarta.servlet</groupId>
+            <artifactId>jakarta.servlet-api</artifactId>
+            <scope>provided</scope>
+        </dependency>
+
+        <!-- ================================================================
+             LOMBOK — Compile-time code generation
+             optional=true: Lombok annotations in this module are processed
+             at compile time; consumers do NOT need Lombok on their classpath
+             to use the compiled lms-security jar.
+        ================================================================ -->
+        <dependency>
+            <groupId>org.projectlombok</groupId>
+            <artifactId>lombok</artifactId>
+            <optional>true</optional>
+        </dependency>
+
+        <!-- ================================================================
+             ANNOTATION PROCESSOR — Enables Spring Boot's auto-configuration
+             metadata generation (optional but improves IDE support and
+             startup performance via spring-autoconfigure-metadata.properties).
+        ================================================================ -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-configuration-processor</artifactId>
+            <optional>true</optional>
+        </dependency>
+
+    </dependencies>
+
+</project>
