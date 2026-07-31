@@ -1,0 +1,162 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+
+    <modelVersion>4.0.0</modelVersion>
+
+    <!-- Spring Boot parent -->
+    <parent>
+        <groupId>org.springframework.boot</groupId>
+        <artifactId>spring-boot-starter-parent</artifactId>
+        <version>4.1.0</version>
+        <relativePath/>
+    </parent>
+
+
+    <!-- Project information -->
+    <groupId>com.lms</groupId>
+    <artifactId>lms-platform</artifactId>
+    <version>1.0.0-SNAPSHOT</version>
+    <packaging>pom</packaging>
+
+    <name>LMS Platform — Parent</name>
+
+
+    <!-- Modules -->
+    <modules>
+        <module>shared-kernel</module>
+        <module>lms-security</module>
+        <module>course-service</module>
+        <!-- <module>api-gateway</module> -->
+    </modules>
+
+
+    <properties>
+
+        <java.version>21</java.version>
+
+        <spring-cloud.version>2025.0.0</spring-cloud.version>
+
+        <mapstruct.version>1.6.3</mapstruct.version>
+
+        <lombok.version>1.18.36</lombok.version>
+
+        <opentelemetry-instrumentation.version>2.9.0</opentelemetry-instrumentation.version>
+
+    </properties>
+
+
+    <!-- Dependency versions -->
+    <dependencyManagement>
+
+        <dependencies>
+
+
+            <!-- Spring Cloud -->
+            <dependency>
+                <groupId>org.springframework.cloud</groupId>
+                <artifactId>spring-cloud-dependencies</artifactId>
+                <version>${spring-cloud.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+
+
+            <!-- Shared Kernel -->
+            <dependency>
+                <groupId>com.lms</groupId>
+                <artifactId>shared-kernel</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+
+
+            <!-- LMS Security -->
+            <dependency>
+                <groupId>com.lms</groupId>
+                <artifactId>lms-security</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+
+
+            <!-- MapStruct -->
+            <dependency>
+                <groupId>org.mapstruct</groupId>
+                <artifactId>mapstruct</artifactId>
+                <version>${mapstruct.version}</version>
+            </dependency>
+
+
+            <!-- OpenTelemetry -->
+            <dependency>
+                <groupId>io.opentelemetry.instrumentation</groupId>
+                <artifactId>opentelemetry-spring-boot-starter</artifactId>
+                <version>${opentelemetry-instrumentation.version}</version>
+            </dependency>
+
+
+        </dependencies>
+
+    </dependencyManagement>
+
+
+
+    <!-- Common dependencies -->
+    <dependencies>
+
+        <dependency>
+            <groupId>org.projectlombok</groupId>
+            <artifactId>lombok</artifactId>
+            <optional>true</optional>
+        </dependency>
+
+    </dependencies>
+
+
+
+    <build>
+
+        <plugins>
+
+            <plugin>
+
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+
+                <configuration>
+
+                    <source>${java.version}</source>
+                    <target>${java.version}</target>
+
+
+                    <annotationProcessorPaths>
+
+                        <path>
+                            <groupId>org.projectlombok</groupId>
+                            <artifactId>lombok</artifactId>
+                            <version>${lombok.version}</version>
+                        </path>
+
+
+                        <path>
+                            <groupId>org.mapstruct</groupId>
+                            <artifactId>mapstruct-processor</artifactId>
+                            <version>${mapstruct.version}</version>
+                        </path>
+
+
+                    </annotationProcessorPaths>
+
+
+                </configuration>
+
+            </plugin>
+
+
+        </plugins>
+
+
+    </build>
+
+
+</project>
