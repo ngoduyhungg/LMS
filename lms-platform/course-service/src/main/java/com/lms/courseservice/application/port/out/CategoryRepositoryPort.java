@@ -1,8 +1,8 @@
-// package: com.lms.courseservice.application.port.out
 package com.lms.courseservice.application.port.out;
 
 import com.lms.courseservice.domain.model.Category;
 
+import java.util.List;
 import java.util.Optional;
 
 /**
@@ -15,4 +15,10 @@ public interface CategoryRepositoryPort {
     Optional<Category> findById(Long id);
 
     Optional<Category> findBySlug(String slug);
+    List<Category> findAll();
+    List<Category> findAllByParentIsNull();
+    Category save(Category category);
+    void deleteById(Long id);
+    boolean existsBySlug(String slug);
+    boolean existsById(Long id);
 }

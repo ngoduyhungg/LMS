@@ -1,4 +1,3 @@
-// package: com.lms.courseservice.adapter.out.persistence
 package com.lms.courseservice.adapter.out.persistence;
 
 import com.lms.courseservice.application.port.out.CategoryRepositoryPort;
@@ -6,6 +5,7 @@ import com.lms.courseservice.domain.model.Category;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
+import java.util.List;
 import java.util.Optional;
 
 /**
@@ -30,4 +30,17 @@ public class CategoryPersistenceAdapter implements CategoryRepositoryPort {
     public Optional<Category> findBySlug(String slug) {
         return categoryJpaRepository.findBySlug(slug);
     }
+
+    @Override
+    public List<Category> findAll(){ return categoryJpaRepository.findAll();}
+    @Override
+    public List<Category> findAllByParentIsNull() { return categoryJpaRepository.findAllByParentIsNull();}
+    @Override
+    public Category save(Category category){ return categoryJpaRepository.save(category);}
+    @Override
+    public void deleteById(Long id){ categoryJpaRepository.deleteById(id);}
+    @Override
+    public boolean existsBySlug(String slug){ return categoryJpaRepository.findBySlug(slug).isPresent();}
+    @Override
+    public boolean existsById(Long id){ return categoryJpaRepository.existsById(id);}
 }
