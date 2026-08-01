@@ -1,0 +1,91 @@
+server:
+  port: 8081
+
+spring:
+  application:
+    name: course-service   # Used as OTel service.name
+
+  # ── Database: course_db (isolated per service) ─────────────────
+  datasource:
+    url: jdbc:postgresql://localhost:5433/course_db
+    username: postgres
+    password: postgres
+    driver-class-name: org.postgresql.Driver
+    hikari:
+      maximum-pool-size: 10
+      minimum-idle: 2
+      idle-timeout: 30000
+
+  jpa:
+    open-in-view: false
+    show-sql: true
+    hibernate:
+      ddl-auto: validate
+    properties:
+      "[hibernate.format_sql]": true
+      "[hibernate.use_sql_comments]": true
+
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+    baseline-on-migrate: true
+
+  # ── Security: Keycloak as OAuth2 Resource Server ────────────────
+  # Course Service does NOT generate tokens — it only VALIDATES them
+  # Keycloak's JWK Set URI is used to verify JWT signatures (no DB needed!)
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          # Keycloak JWK Set endpoint — Spring fetches public keys automatically
+          jwk-set-uri: http://localhost:8180/realms/lms-realm/protocol/openid-connect/certs
+          # issuer-uri enables token issuer validation (recommended for production)
+          issuer-uri: http://localhost:8180/realms/lms-realm
+
+# ── Observability ───────────────────────────────────────────────────
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus,loggers
+  endpoint:
+    health:
+      show-details: always
+  # Micrometer Tracing → OTel SDK → Jaeger
+  tracing:
+    sampling:
+      probability: 1.0   # 100% in dev; use 0.1 in production
+  # OTLP Exporter config (sends to Jaeger OTLP receiver)
+  otlp:
+    tracing:
+      endpoint: http://localhost:4318/v1/traces   # OTLP HTTP
+      timeout: 5s
+    metrics:
+      export:
+        step: 10s
+
+# ── OpenTelemetry Resource Attributes ──────────────────────────────
+otel:
+  service:
+    name: ${spring.application.name}
+  exporter:
+    otlp:
+      endpoint: http://localhost:4318
+      protocol: http/protobuf
+  propagators: tracecontext,baggage   # W3C Trace Context (standard)
+  instrumentation:
+    spring-web:
+      enabled: true
+    spring-webmvc:
+      enabled: true
+    jdbc:
+      enabled: true
+
+# ── Logging with Trace IDs injected automatically ──────────────────
+logging:
+  pattern:
+    level: "%5p [${spring.application.name:},%X{traceId:-},%X{spanId:-}]"
+  level:
+    "[org.springframework.security]": DEBUG   # remove in production
+    "[org.hibernate.SQL]": DEBUG
+    "[com.lms]": DEBUG
