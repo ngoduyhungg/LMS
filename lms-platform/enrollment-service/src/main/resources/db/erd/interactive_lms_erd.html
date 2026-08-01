@@ -1,0 +1,462 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LMS Interactive Schema Explorer</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/d3@7"></script>
+    <style>
+        body { background-color: #0f172a; color: #e2e8f0; font-family: 'Inter', sans-serif; }
+        .node-rect { transition: fill 0.3s, stroke-width 0.3s; }
+        .link { transition: stroke 0.3s, opacity 0.3s, stroke-width 0.3s; }
+        .panel { background: rgba(30, 41, 59, 0.8); backdrop-filter: blur(10px); border: 1px solid #334155; }
+        /* Scrollbar styles for the details panel */
+        #details-panel::-webkit-scrollbar { width: 6px; }
+        #details-panel::-webkit-scrollbar-track { background: transparent; }
+        #details-panel::-webkit-scrollbar-thumb { background: #475569; border-radius: 4px; }
+        #details-panel::-webkit-scrollbar-thumb:hover { background: #64748b; }
+    </style>
+</head>
+<body class="h-screen w-screen overflow-hidden flex flex-col">
+
+    <!-- Header -->
+    <header class="p-4 bg-slate-900 border-b border-slate-800 flex justify-between items-center z-10">
+        <h1 class="text-xl font-bold text-slate-100">LMS Database Schema Explorer</h1>
+        <div class="flex gap-4 items-center">
+            <label class="text-sm text-slate-400">Module:</label>
+            <select id="module-filter" class="bg-slate-800 border border-slate-700 text-slate-200 text-sm rounded focus:ring-blue-500 focus:border-blue-500 block p-2">
+                <option value="All">All Modules</option>
+                <option value="Auth/RBAC">Auth/RBAC</option>
+                <option value="Course/Lesson">Course/Lesson</option>
+                <option value="Enrollment/Progress">Enrollment/Progress</option>
+                <option value="Quiz/Assessment">Quiz/Assessment</option>
+                <option value="Attendance/Notification">Attendance/Notification</option>
+                <option value="Certificate">Certificate</option>
+            </select>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <div class="flex-1 relative flex">
+        <!-- Visualization Container -->
+        <div id="viz-container" class="flex-1 relative"></div>
+
+        <!-- Details Sidebar -->
+        <aside class="w-96 panel h-full flex flex-col z-10 shadow-xl border-l transform transition-transform duration-300 translate-x-0" id="sidebar">
+            <div class="p-4 border-b border-slate-700 flex justify-between items-center bg-slate-800/50">
+                <h2 class="font-bold text-lg" id="panel-title">Table Details</h2>
+                <button id="close-panel" class="text-slate-400 hover:text-white">&times;</button>
+            </div>
+            
+            <div class="p-4 flex-1 overflow-y-auto" id="details-panel">
+                <div id="empty-state" class="text-slate-500 text-center mt-10">
+                    <p>Click on a table to view its schema</p>
+                </div>
+                
+                <div id="table-content" class="hidden space-y-6">
+                    <div>
+                        <span id="module-badge" class="text-xs font-semibold inline-block py-1 px-2 uppercase rounded-full last-mr-0 mr-1 bg-blue-900 text-blue-200"></span>
+                    </div>
+                    
+                    <div>
+                        <h3 class="text-sm font-semibold text-slate-400 mb-2 uppercase tracking-wider">Columns</h3>
+                        <div class="bg-slate-900 rounded-lg border border-slate-700 overflow-hidden">
+                            <table class="w-full text-sm text-left">
+                                <thead class="text-xs text-slate-400 bg-slate-800/50 uppercase">
+                                    <tr>
+                                        <th class="px-4 py-2">Name</th>
+                                        <th class="px-4 py-2">Type</th>
+                                        <th class="px-4 py-2">Key</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="columns-body" class="divide-y divide-slate-800">
+                                    <!-- Populated via JS -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <div>
+                        <div class="flex justify-between items-end mb-2">
+                            <h3 class="text-sm font-semibold text-slate-400 uppercase tracking-wider">DDL (PostgreSQL)</h3>
+                            <button id="copy-btn" class="text-xs bg-slate-700 hover:bg-slate-600 px-2 py-1 rounded transition-colors">Copy</button>
+                        </div>
+                        <pre class="bg-slate-900 p-3 rounded-lg border border-slate-700 text-xs text-green-400 overflow-x-auto whitespace-pre-wrap"><code id="sql-code"></code></pre>
+                    </div>
+                </div>
+            </div>
+        </aside>
+    </div>
+
+    <!-- Toast Notification -->
+    <div id="toast" class="fixed bottom-5 right-5 bg-green-600 text-white px-4 py-2 rounded shadow-lg transform transition-all duration-300 translate-y-20 opacity-0 z-50">
+        Copied to clipboard!
+    </div>
+
+    <script>
+        // Data Definitions based on the schema
+        const MODULE_COLORS = {
+            "Auth/RBAC": "#ef4444", // red-500
+            "Course/Lesson": "#3b82f6", // blue-500
+            "Enrollment/Progress": "#f59e0b", // amber-500
+            "Quiz/Assessment": "#10b981", // emerald-500
+            "Attendance/Notification": "#8b5cf6", // violet-500
+            "Certificate": "#ec4899" // pink-500
+        };
+
+        const TABLES = [
+            { id: "users", name: "users", module: "Auth/RBAC", columns: [{n:"id", t:"BIGSERIAL", k:"PK"}, {n:"email", t:"VARCHAR", k:"UK"}, {n:"password_hash", t:"VARCHAR", k:""}, {n:"full_name", t:"VARCHAR", k:""}, {n:"status", t:"VARCHAR", k:""}, {n:"created_at", t:"TIMESTAMP", k:""}] },
+            { id: "roles", name: "roles", module: "Auth/RBAC", columns: [{n:"id", t:"BIGSERIAL", k:"PK"}, {n:"name", t:"VARCHAR", k:"UK"}, {n:"description", t:"VARCHAR", k:""}] },
+            { id: "permissions", name: "permissions", module: "Auth/RBAC", columns: [{n:"id", t:"BIGSERIAL", k:"PK"}, {n:"name", t:"VARCHAR", k:"UK"}, {n:"module", t:"VARCHAR", k:""}] },
+            { id: "user_roles", name: "user_roles", module: "Auth/RBAC", columns: [{n:"user_id", t:"BIGINT", k:"PK, FK"}, {n:"role_id", t:"BIGINT", k:"PK, FK"}] },
+            { id: "role_permissions", name: "role_permissions", module: "Auth/RBAC", columns: [{n:"role_id", t:"BIGINT", k:"PK, FK"}, {n:"permission_id", t:"BIGINT", k:"PK, FK"}] },
+            { id: "refresh_tokens", name: "refresh_tokens", module: "Auth/RBAC", columns: [{n:"id", t:"BIGSERIAL", k:"PK"}, {n:"user_id", t:"BIGINT", k:"FK"}, {n:"token", t:"VARCHAR", k:"UK"}] },
+            
+            { id: "categories", name: "categories", module: "Course/Lesson", columns: [{n:"id", t:"BIGSERIAL", k:"PK"}, {n:"parent_id", t:"BIGINT", k:"FK"}, {n:"name", t:"VARCHAR", k:""}, {n:"slug", t:"VARCHAR", k:"UK"}] },
+            { id: "courses", name: "courses", module: "Course/Lesson", columns: [{n:"id", t:"BIGSERIAL", k:"PK"}, {n:"category_id", t:"BIGINT", k:"FK"}, {n:"instructor_id", t:"BIGINT", k:"FK"}, {n:"title", t:"VARCHAR", k:""}, {n:"price", t:"NUMERIC", k:""}] },
+            { id: "modules", name: "modules", module: "Course/Lesson", columns: [{n:"id", t:"BIGSERIAL", k:"PK"}, {n:"course_id", t:"BIGINT", k:"FK"}, {n:"title", t:"VARCHAR", k:""}, {n:"sort_order", t:"INT", k:""}] },
+            { id: "lessons", name: "lessons", module: "Course/Lesson", columns: [{n:"id", t:"BIGSERIAL", k:"PK"}, {n:"module_id", t:"BIGINT", k:"FK"}, {n:"title", t:"VARCHAR", k:""}, {n:"lesson_type", t:"VARCHAR", k:""}] },
+            { id: "lesson_resources", name: "lesson_resources", module: "Course/Lesson", columns: [{n:"id", t:"BIGSERIAL", k:"PK"}, {n:"lesson_id", t:"BIGINT", k:"FK"}, {n:"title", t:"VARCHAR", k:""}, {n:"file_url", t:"VARCHAR", k:""}] },
+            
+            { id: "enrollments", name: "enrollments", module: "Enrollment/Progress", columns: [{n:"id", t:"BIGSERIAL", k:"PK"}, {n:"user_id", t:"BIGINT", k:"FK"}, {n:"course_id", t:"BIGINT", k:"FK"}, {n:"status", t:"VARCHAR", k:""}] },
+            { id: "course_progress", name: "course_progress", module: "Enrollment/Progress", columns: [{n:"id", t:"BIGSERIAL", k:"PK"}, {n:"enrollment_id", t:"BIGINT", k:"FK, UK"}, {n:"progress_percentage", t:"NUMERIC", k:""}, {n:"last_accessed_lesson_id", t:"BIGINT", k:"FK"}] },
+            { id: "lesson_progress", name: "lesson_progress", module: "Enrollment/Progress", columns: [{n:"id", t:"BIGSERIAL", k:"PK"}, {n:"enrollment_id", t:"BIGINT", k:"FK"}, {n:"lesson_id", t:"BIGINT", k:"FK"}, {n:"status", t:"VARCHAR", k:""}] },
+            
+            { id: "quizzes", name: "quizzes", module: "Quiz/Assessment", columns: [{n:"id", t:"BIGSERIAL", k:"PK"}, {n:"course_id", t:"BIGINT", k:"FK"}, {n:"lesson_id", t:"BIGINT", k:"FK"}, {n:"title", t:"VARCHAR", k:""}] },
+            { id: "questions", name: "questions", module: "Quiz/Assessment", columns: [{n:"id", t:"BIGSERIAL", k:"PK"}, {n:"quiz_id", t:"BIGINT", k:"FK"}, {n:"content", t:"TEXT", k:""}, {n:"points", t:"NUMERIC", k:""}] },
+            { id: "question_options", name: "question_options", module: "Quiz/Assessment", columns: [{n:"id", t:"BIGSERIAL", k:"PK"}, {n:"question_id", t:"BIGINT", k:"FK"}, {n:"content", t:"TEXT", k:""}, {n:"is_correct", t:"BOOLEAN", k:""}] },
+            { id: "quiz_submissions", name: "quiz_submissions", module: "Quiz/Assessment", columns: [{n:"id", t:"BIGSERIAL", k:"PK"}, {n:"quiz_id", t:"BIGINT", k:"FK"}, {n:"user_id", t:"BIGINT", k:"FK"}, {n:"enrollment_id", t:"BIGINT", k:"FK"}, {n:"total_score", t:"NUMERIC", k:""}] },
+            { id: "submission_answers", name: "submission_answers", module: "Quiz/Assessment", columns: [{n:"id", t:"BIGSERIAL", k:"PK"}, {n:"submission_id", t:"BIGINT", k:"FK"}, {n:"question_id", t:"BIGINT", k:"FK"}, {n:"selected_option_id", t:"BIGINT", k:"FK"}] },
+            
+            { id: "attendance_sessions", name: "attendance_sessions", module: "Attendance/Notification", columns: [{n:"id", t:"BIGSERIAL", k:"PK"}, {n:"course_id", t:"BIGINT", k:"FK"}, {n:"session_date", t:"DATE", k:""}] },
+            { id: "attendance_records", name: "attendance_records", module: "Attendance/Notification", columns: [{n:"id", t:"BIGSERIAL", k:"PK"}, {n:"session_id", t:"BIGINT", k:"FK"}, {n:"user_id", t:"BIGINT", k:"FK"}, {n:"status", t:"VARCHAR", k:""}] },
+            { id: "notifications", name: "notifications", module: "Attendance/Notification", columns: [{n:"id", t:"BIGSERIAL", k:"PK"}, {n:"sender_id", t:"BIGINT", k:"FK"}, {n:"title", t:"VARCHAR", k:""}, {n:"content", t:"TEXT", k:""}] },
+            { id: "user_notifications", name: "user_notifications", module: "Attendance/Notification", columns: [{n:"id", t:"BIGSERIAL", k:"PK"}, {n:"notification_id", t:"BIGINT", k:"FK"}, {n:"recipient_id", t:"BIGINT", k:"FK"}, {n:"is_read", t:"BOOLEAN", k:""}] },
+            
+            { id: "certificates", name: "certificates", module: "Certificate", columns: [{n:"id", t:"BIGSERIAL", k:"PK"}, {n:"course_id", t:"BIGINT", k:"FK"}, {n:"title", t:"VARCHAR", k:""}] },
+            { id: "user_certificates", name: "user_certificates", module: "Certificate", columns: [{n:"id", t:"BIGSERIAL", k:"PK"}, {n:"certificate_id", t:"BIGINT", k:"FK"}, {n:"user_id", t:"BIGINT", k:"FK"}, {n:"enrollment_id", t:"BIGINT", k:"FK, UK"}] }
+        ];
+
+        const LINKS = [
+            { source: "user_roles", target: "users" }, { source: "user_roles", target: "roles" },
+            { source: "role_permissions", target: "roles" }, { source: "role_permissions", target: "permissions" },
+            { source: "refresh_tokens", target: "users" },
+            { source: "categories", target: "categories" },
+            { source: "courses", target: "categories" }, { source: "courses", target: "users" },
+            { source: "modules", target: "courses" },
+            { source: "lessons", target: "modules" },
+            { source: "lesson_resources", target: "lessons" },
+            { source: "enrollments", target: "users" }, { source: "enrollments", target: "courses" },
+            { source: "course_progress", target: "enrollments" }, { source: "course_progress", target: "lessons" },
+            { source: "lesson_progress", target: "enrollments" }, { source: "lesson_progress", target: "lessons" },
+            { source: "quizzes", target: "courses" }, { source: "quizzes", target: "lessons" },
+            { source: "questions", target: "quizzes" },
+            { source: "question_options", target: "questions" },
+            { source: "quiz_submissions", target: "quizzes" }, { source: "quiz_submissions", target: "users" }, { source: "quiz_submissions", target: "enrollments" },
+            { source: "submission_answers", target: "quiz_submissions" }, { source: "submission_answers", target: "questions" }, { source: "submission_answers", target: "question_options" },
+            { source: "attendance_sessions", target: "courses" },
+            { source: "attendance_records", target: "attendance_sessions" }, { source: "attendance_records", target: "users" },
+            { source: "notifications", target: "users" },
+            { source: "user_notifications", target: "notifications" }, { source: "user_notifications", target: "users" },
+            { source: "certificates", target: "courses" },
+            { source: "user_certificates", target: "certificates" }, { source: "user_certificates", target: "users" }, { source: "user_certificates", target: "enrollments" }
+        ];
+
+        let currentModule = "All";
+        let selectedTableId = null;
+
+        // D3 Visualization Setup
+        const container = document.getElementById('viz-container');
+        let width = container.clientWidth;
+        let height = container.clientHeight;
+
+        const svg = d3.select('#viz-container').append('svg')
+            .attr('width', '100%')
+            .attr('height', '100%')
+            .call(d3.zoom().scaleExtent([0.1, 4]).on('zoom', (e) => g.attr('transform', e.transform)));
+
+        const g = svg.append('g');
+
+        // Arrow marker definitions
+        svg.append('defs').selectAll('marker')
+            .data(['default', 'highlighted', 'faded'])
+            .enter().append('marker')
+            .attr('id', d => `arrow-${d}`)
+            .attr('viewBox', '0 -5 10 10')
+            .attr('refX', 30) // Offset to account for node width
+            .attr('refY', 0)
+            .attr('markerWidth', 6)
+            .attr('markerHeight', 6)
+            .attr('orient', 'auto')
+            .append('path')
+            .attr('d', 'M0,-5L10,0L0,5')
+            .attr('fill', d => d === 'highlighted' ? '#94a3b8' : d === 'faded' ? '#1e293b' : '#475569');
+
+        // Force Simulation
+        const simulation = d3.forceSimulation()
+            .force('link', d3.forceLink().id(d => d.id).distance(120))
+            .force('charge', d3.forceManyBody().strength(-800))
+            .force('center', d3.forceCenter(width / 2, height / 2))
+            .force('collide', d3.forceCollide().radius(60));
+
+        let link = g.append('g').attr('class', 'links').selectAll('.link');
+        let node = g.append('g').attr('class', 'nodes').selectAll('.node');
+
+        function generateDDL(table) {
+            const cols = table.columns.map(c => {
+                let def = `  ${c.n} ${c.t}`;
+                if (c.k.includes('PK')) def += ' PRIMARY KEY';
+                if (c.k.includes('UK')) def += ' UNIQUE';
+                return def;
+            }).join(",\n");
+            return `CREATE TABLE ${table.name} (\n${cols}\n);`;
+        }
+
+        function updateSidebar(tableData) {
+            const emptyState = document.getElementById('empty-state');
+            const tableContent = document.getElementById('table-content');
+            const sidebar = document.getElementById('sidebar');
+
+            if (!tableData) {
+                emptyState.classList.remove('hidden');
+                tableContent.classList.add('hidden');
+                document.getElementById('panel-title').innerText = "Table Details";
+                return;
+            }
+
+            // Make sure sidebar is open (in case it was closed via mobile view)
+            sidebar.classList.remove('translate-x-full');
+
+            emptyState.classList.add('hidden');
+            tableContent.classList.remove('hidden');
+
+            document.getElementById('panel-title').innerText = tableData.name;
+            
+            const badge = document.getElementById('module-badge');
+            badge.innerText = tableData.module;
+            badge.style.backgroundColor = MODULE_COLORS[tableData.module] + '40'; // add transparency
+            badge.style.color = MODULE_COLORS[tableData.module];
+            badge.style.borderColor = MODULE_COLORS[tableData.module];
+
+            const tbody = document.getElementById('columns-body');
+            tbody.innerHTML = '';
+            tableData.columns.forEach(col => {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td class="px-4 py-2 font-mono text-slate-300">${col.n}</td>
+                    <td class="px-4 py-2 text-slate-400">${col.t}</td>
+                    <td class="px-4 py-2">
+                        ${col.k.includes('PK') ? '<span class="text-xs bg-amber-900/50 text-amber-500 border border-amber-700 rounded px-1 mr-1">PK</span>' : ''}
+                        ${col.k.includes('FK') ? '<span class="text-xs bg-blue-900/50 text-blue-400 border border-blue-700 rounded px-1 mr-1">FK</span>' : ''}
+                        ${col.k.includes('UK') ? '<span class="text-xs bg-purple-900/50 text-purple-400 border border-purple-700 rounded px-1 mr-1">UK</span>' : ''}
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+
+            document.getElementById('sql-code').innerText = generateDDL(tableData);
+        }
+
+        function isVisible(d) {
+            return currentModule === "All" || d.module === currentModule;
+        }
+
+        function render() {
+            // Filter nodes and links based on module
+            const visibleNodes = TABLES.filter(isVisible);
+            const visibleNodeIds = new Set(visibleNodes.map(n => n.id));
+            const visibleLinks = LINKS.filter(l => 
+                visibleNodeIds.has(typeof l.source === 'object' ? l.source.id : l.source) && 
+                visibleNodeIds.has(typeof l.target === 'object' ? l.target.id : l.target)
+            );
+
+            // Determine related nodes if a table is selected
+            let relatedNodeIds = new Set();
+            if (selectedTableId) {
+                relatedNodeIds.add(selectedTableId);
+                LINKS.forEach(l => {
+                    const sId = typeof l.source === 'object' ? l.source.id : l.source;
+                    const tId = typeof l.target === 'object' ? l.target.id : l.target;
+                    if (sId === selectedTableId) relatedNodeIds.add(tId);
+                    if (tId === selectedTableId) relatedNodeIds.add(sId);
+                });
+            }
+
+            // Update Links
+            link = link.data(visibleLinks, d => `${d.source.id||d.source}-${d.target.id||d.target}`);
+            link.exit().transition().duration(300).attr('opacity', 0).remove();
+            
+            const linkEnter = link.enter().append('path')
+                .attr('class', 'link')
+                .attr('fill', 'none')
+                .attr('stroke', '#475569')
+                .attr('stroke-width', 1.5)
+                .attr('marker-end', 'url(#arrow-default)');
+
+            link = linkEnter.merge(link);
+
+            // Update Link styles based on selection
+            link.transition().duration(300)
+                .attr('stroke', d => {
+                    if (!selectedTableId) return '#475569';
+                    const sId = d.source.id || d.source;
+                    const tId = d.target.id || d.target;
+                    return (sId === selectedTableId || tId === selectedTableId) ? '#94a3b8' : '#1e293b';
+                })
+                .attr('stroke-width', d => {
+                    if (!selectedTableId) return 1.5;
+                    const sId = d.source.id || d.source;
+                    const tId = d.target.id || d.target;
+                    return (sId === selectedTableId || tId === selectedTableId) ? 2.5 : 1;
+                })
+                .attr('marker-end', d => {
+                    if (!selectedTableId) return 'url(#arrow-default)';
+                    const sId = d.source.id || d.source;
+                    const tId = d.target.id || d.target;
+                    return (sId === selectedTableId || tId === selectedTableId) ? 'url(#arrow-highlighted)' : 'url(#arrow-faded)';
+                });
+
+            // Update Nodes
+            node = node.data(visibleNodes, d => d.id);
+            node.exit().transition().duration(300).attr('opacity', 0).remove();
+
+            const nodeEnter = node.enter().append('g')
+                .attr('class', 'node cursor-pointer')
+                .call(d3.drag()
+                    .on('start', dragstarted)
+                    .on('drag', dragged)
+                    .on('end', dragended))
+                .on('click', (event, d) => {
+                    event.stopPropagation();
+                    selectedTableId = d.id;
+                    updateSidebar(d);
+                    render(); // Re-render to update highlights
+                });
+
+            // Node Background Rect
+            nodeEnter.append('rect')
+                .attr('class', 'node-rect')
+                .attr('rx', 6)
+                .attr('ry', 6)
+                .attr('x', -60)
+                .attr('y', -20)
+                .attr('width', 120)
+                .attr('height', 40)
+                .attr('fill', '#1e293b')
+                .attr('stroke', d => MODULE_COLORS[d.module])
+                .attr('stroke-width', 2);
+
+            // Node Text
+            nodeEnter.append('text')
+                .attr('text-anchor', 'middle')
+                .attr('dy', '5px')
+                .attr('fill', '#e2e8f0')
+                .style('font-size', '12px')
+                .style('font-weight', '500')
+                .style('pointer-events', 'none')
+                .text(d => d.name);
+
+            node = nodeEnter.merge(node);
+
+            // Update Node styles based on selection
+            node.transition().duration(300)
+                .attr('opacity', d => {
+                    if (!selectedTableId) return 1;
+                    return relatedNodeIds.has(d.id) ? 1 : 0.3;
+                })
+                .select('.node-rect')
+                .attr('stroke-width', d => d.id === selectedTableId ? 4 : 2)
+                .attr('fill', d => d.id === selectedTableId ? '#334155' : '#1e293b');
+
+            // Restart simulation with new data
+            simulation.nodes(visibleNodes);
+            simulation.force('link').links(visibleLinks);
+            simulation.alpha(1).restart();
+        }
+
+        // Simulation Tick
+        simulation.on('tick', () => {
+            link.attr('d', d => {
+                const dx = d.target.x - d.source.x,
+                      dy = d.target.y - d.source.y,
+                      dr = Math.sqrt(dx * dx + dy * dy);
+                
+                // Curve the paths
+                return `M${d.source.x},${d.source.y}A${dr},${dr} 0 0,1 ${d.target.x},${d.target.y}`;
+            });
+
+            node.attr('transform', d => `translate(${d.x},${d.y})`);
+        });
+
+        // Drag functions
+        function dragstarted(event, d) {
+            if (!event.active) simulation.alphaTarget(0.3).restart();
+            d.fx = d.x;
+            d.fy = d.y;
+        }
+
+        function dragged(event, d) {
+            d.fx = event.x;
+            d.fy = event.y;
+        }
+
+        function dragended(event, d) {
+            if (!event.active) simulation.alphaTarget(0);
+            d.fx = null;
+            d.fy = null;
+        }
+
+        // Global Event Listeners
+        svg.on('click', () => {
+            selectedTableId = null;
+            updateSidebar(null);
+            render();
+        });
+
+        document.getElementById('module-filter').addEventListener('change', (e) => {
+            currentModule = e.target.value;
+            // Clear selection if the selected table is not in the new module view (unless "All" is selected)
+            if (selectedTableId && currentModule !== "All") {
+                const selectedNode = TABLES.find(t => t.id === selectedTableId);
+                if (selectedNode && selectedNode.module !== currentModule) {
+                    selectedTableId = null;
+                    updateSidebar(null);
+                }
+            }
+            render();
+        });
+
+        document.getElementById('close-panel').addEventListener('click', () => {
+            selectedTableId = null;
+            updateSidebar(null);
+            render();
+        });
+
+        // Copy functionality
+        document.getElementById('copy-btn').addEventListener('click', () => {
+            const sqlText = document.getElementById('sql-code').innerText;
+            navigator.clipboard.writeText(sqlText).then(() => {
+                const toast = document.getElementById('toast');
+                toast.classList.remove('translate-y-20', 'opacity-0');
+                setTimeout(() => {
+                    toast.classList.add('translate-y-20', 'opacity-0');
+                }, 2000);
+            });
+        });
+
+        // Window resize handler
+        window.addEventListener('resize', () => {
+            width = container.clientWidth;
+            height = container.clientHeight;
+            svg.attr('viewBox', [0, 0, width, height]);
+            simulation.force('center', d3.forceCenter(width / 2, height / 2));
+            simulation.alpha(0.3).restart();
+        });
+
+        // Initial render
+        render();
+
+    </script>
+</body>
+</html>
