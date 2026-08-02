@@ -1,8 +1,9 @@
-// package: com.lms.courseservice.application.port.out
 package com.lms.courseservice.application.port.out;
 
 import com.lms.courseservice.domain.enums.CourseStatus;
 import com.lms.courseservice.domain.model.Course;
+import com.lms.courseservice.domain.model.Lesson;
+import com.lms.courseservice.domain.model.Module;
 
 import java.util.List;
 import java.util.Optional;
@@ -31,4 +32,8 @@ public interface CourseRepositoryPort {
     void deleteById(Long id);
 
     boolean existsById(Long id);
+
+    Optional<Course> findByIdWithFullCurriculum(Long id);
+    Optional<Module> findModuleById(Long moduleId);
+    Optional<Lesson> findLessonById(Long lessonId);
 }

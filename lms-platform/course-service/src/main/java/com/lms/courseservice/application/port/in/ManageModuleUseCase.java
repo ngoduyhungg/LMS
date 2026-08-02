@@ -1,10 +1,9 @@
 package com.lms.courseservice.application.port.in;
-
-import com.lms.courseservice.adapter.in.rest.dto.ModuleResponse;
-import com.lms.courseservice.adapter.in.rest.dto.ModuleUpsertRequest;
+import com.lms.courseservice.application.port.in.command.ModuleCommand;
+import com.lms.courseservice.domain.model.Module;
 
 public interface ManageModuleUseCase {
-    ModuleResponse addModule(Long courseId, ModuleUpsertRequest request);
-    ModuleResponse updateModule(Long moduleId, ModuleUpsertRequest request);
+    Module addModule(Long courseId, ModuleCommand request);
+    Module updateModule(Long moduleId, ModuleCommand request);
     void deleteModule(Long moduleId);
 }

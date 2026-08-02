@@ -1,10 +1,9 @@
 package com.lms.courseservice.adapter.out.persistence;
 
 import org.springframework.data.jpa.repository.JpaRepository;
-import com.lms.courseservice.domain.model.Module;
-
+import com.lms.courseservice.adapter.out.persistence.entity.ModuleJpaEntity;
 import java.util.List;
 
-public interface ModuleJpaRepository extends JpaRepository<Module, Long> {
-    List<Module> findAllByCourseIdOrderBySortOrder(Long courseId);
+public interface ModuleJpaRepository extends JpaRepository<ModuleJpaEntity, Long> {
+    List<ModuleJpaEntity> findAllByCourseIdOrderBySortOrder(Long courseId);
 }

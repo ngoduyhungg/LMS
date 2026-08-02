@@ -1,10 +1,8 @@
 package com.lms.courseservice.application.port.in;
-
-import com.lms.courseservice.adapter.in.rest.dto.ModuleResponse;
-
+import com.lms.courseservice.domain.model.Module;
 import java.util.List;
 
 public interface GetModuleUseCase {
-    List<ModuleResponse> getModulesByCourseId(Long courseId);
-    ModuleResponse getModuleById(Long moduleId);
+    List<Module> getModulesByCourseId(Long courseId);
+    Module getModuleById(Long moduleId);
 }
