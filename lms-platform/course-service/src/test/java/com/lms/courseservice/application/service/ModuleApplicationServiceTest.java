@@ -1,10 +1,7 @@
 package com.lms.courseservice.application.service;
 
-import com.lms.courseservice.adapter.in.rest.dto.ModuleResponse;
-import com.lms.courseservice.adapter.in.rest.dto.ModuleUpsertRequest;
-import com.lms.courseservice.adapter.out.persistence.mapper.ModuleMapper;
+import com.lms.courseservice.application.port.in.command.ModuleCommand;
 import com.lms.courseservice.application.port.out.CourseRepositoryPort;
-import com.lms.courseservice.application.port.out.ModuleRepositoryPort;
 import com.lms.security.util.SecurityUtils;
 import com.lms.courseservice.domain.model.Course;
 import com.lms.courseservice.domain.model.Module;
@@ -13,11 +10,13 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.MockedStatic;
 import org.mockito.Mockito;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import java.util.ArrayList;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -28,14 +27,9 @@ import static org.mockito.Mockito.*;
 class ModuleApplicationServiceTest {
 
     @Mock
-    private ModuleRepositoryPort moduleRepository;
-
-    @Mock
     private CourseRepositoryPort courseRepository;
 
-    @Mock
-    private ModuleMapper moduleMapper;
-
+    @InjectMocks
     private ModuleApplicationService moduleApplicationService;
 
     private MockedStatic<SecurityUtils> mockedSecurityUtils;
@@ -44,10 +38,9 @@ class ModuleApplicationServiceTest {
     @BeforeEach
     void setUp() {
         mockedSecurityUtils = Mockito.mockStatic(SecurityUtils.class);
-        // Mặc định cho phép mọi checkOwnership đi qua thành công (do nothing)
         mockedSecurityUtils.when(() -> SecurityUtils.checkOwnership(anyString())).thenAnswer(inv -> null);
 
-        mockCourse = Course.builder().instructor("valid-instructor-id").build();
+        mockCourse = Course.builder().instructor("valid-instructor-id").modules(new ArrayList<>()).build();
     }
 
     @AfterEach
@@ -56,44 +49,47 @@ class ModuleApplicationServiceTest {
     }
 
     @Test
-    @DisplayName("Thêm Module thành công - Đã vượt qua bước kiểm tra quyền")
+    @DisplayName("Thêm Module thành công thông qua Aggregate Course")
     void should_AddModule_Successfully_When_IsOwner() {
         Long courseId = 1L;
-        ModuleUpsertRequest request = ModuleUpsertRequest.builder().title("Microservices 101").sortOrder(1).build();
-        ModuleResponse expectedResponse = ModuleResponse.builder().title("Microservices 101").build();
 
-        when(courseRepository.findById(courseId)).thenReturn(Optional.of(mockCourse));
-        when(moduleRepository.save(any(Module.class))).thenAnswer(inv -> inv.getArgument(0));
-        when(moduleMapper.toResponse(any(Module.class))).thenReturn(expectedResponse);
+        // Dùng ModuleCommand thay cho DTO
+        ModuleCommand command = new ModuleCommand("Microservices 101", 1);
 
-        ModuleResponse actualResponse = moduleApplicationService.addModule(courseId, request);
+        when(courseRepository.findByIdWithFullCurriculum(courseId)).thenReturn(Optional.of(mockCourse));
+        when(courseRepository.save(any(Course.class))).thenAnswer(inv -> inv.getArgument(0));
 
-        assertThat(actualResponse).isNotNull();
-        // Kiểm chứng xem phương thức SecurityUtils.checkOwnership có thực sự được gọi để bảo mật hệ thống chưa
+        Module actualModule = moduleApplicationService.addModule(courseId, command);
+
+        assertThat(actualModule).isNotNull();
+        assertThat(actualModule.getTitle()).isEqualTo("Microservices 101");
+
         mockedSecurityUtils.verify(() -> SecurityUtils.checkOwnership("valid-instructor-id"), times(1));
 
-        verify(moduleRepository, times(1)).save(argThat(module ->
-                module.getTitle().equals("Microservices 101") &&
-                        module.getCourse() != null
+        verify(courseRepository, times(1)).save(argThat(course ->
+                course.getModules().size() == 1 &&
+                        course.getModules().get(0).getTitle().equals("Microservices 101")
         ));
     }
 
     @Test
-    @DisplayName("Sửa Module thành công - Kiểm tra cập nhật details")
+    @DisplayName("Sửa Module thành công thông qua Aggregate Course")
     void should_UpdateModule_Successfully() {
         Long moduleId = 1L;
         Module existingModule = Module.create(mockCourse, "Old Title", 0);
-        ModuleUpsertRequest request = ModuleUpsertRequest.builder().title("New Title").sortOrder(5).build();
+        mockCourse.getModules().add(existingModule);
 
-        when(moduleRepository.findById(moduleId)).thenReturn(Optional.of(existingModule));
-        when(moduleRepository.save(any(Module.class))).thenAnswer(inv -> inv.getArgument(0));
+        // Dùng ModuleCommand thay cho DTO
+        ModuleCommand command = new ModuleCommand("New Title", 5);
 
-        moduleApplicationService.updateModule(moduleId, request);
+        when(courseRepository.findModuleById(moduleId)).thenReturn(Optional.of(existingModule));
+        when(courseRepository.save(any(Course.class))).thenAnswer(inv -> inv.getArgument(0));
 
-        // Đảm bảo module đã kích hoạt hành vi updateDetails của Rich Domain Model
-        verify(moduleRepository, times(1)).save(argThat(module ->
-                module.getTitle().equals("New Title") &&
-                        module.getSortOrder() == 5
+        moduleApplicationService.updateModule(moduleId, command);
+
+        verify(courseRepository, times(1)).save(argThat(course ->
+                course.getModules().get(0).getTitle().equals("New Title") &&
+                        course.getModules().get(0).getSortOrder() == 5
         ));
     }
 }

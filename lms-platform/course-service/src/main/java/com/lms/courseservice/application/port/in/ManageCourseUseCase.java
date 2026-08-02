@@ -1,10 +1,10 @@
 package com.lms.courseservice.application.port.in;
 
-import com.lms.courseservice.adapter.in.rest.dto.CourseResponse;
-import com.lms.courseservice.adapter.in.rest.dto.CourseUpsertRequest;
+import com.lms.courseservice.application.port.in.command.CourseCommand;
+import com.lms.courseservice.domain.model.Course;
 
 public interface ManageCourseUseCase {
-    CourseResponse createCourse(CourseUpsertRequest request);
-    CourseResponse updateCourse(Long id, CourseUpsertRequest request);
+    Course createCourse(CourseCommand request);
+    Course updateCourse(Long id, CourseCommand request);
     void deleteCourse(Long id);
 }

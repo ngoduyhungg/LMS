@@ -2,8 +2,11 @@ package com.lms.courseservice.adapter.in.rest;
 
 import com.lms.courseservice.adapter.in.rest.dto.ModuleResponse;
 import com.lms.courseservice.adapter.in.rest.dto.ModuleUpsertRequest;
+import com.lms.courseservice.adapter.in.rest.mapper.ModuleRestMapper;
 import com.lms.courseservice.application.port.in.GetModuleUseCase;
 import com.lms.courseservice.application.port.in.ManageModuleUseCase;
+import com.lms.courseservice.application.port.in.command.ModuleCommand;
+import com.lms.courseservice.domain.model.Module;
 import com.lms.shared.dto.ApiResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -18,28 +21,37 @@ import java.util.List;
 @RequestMapping("/api/courses")
 @RequiredArgsConstructor
 public class ModuleController {
+
     private final GetModuleUseCase getModuleUseCase;
     private final ManageModuleUseCase manageModuleUseCase;
+    private final ModuleRestMapper restMapper;
 
     @GetMapping("/{courseId}/modules")
     public ResponseEntity<ApiResponse<List<ModuleResponse>>> getModulesByCourseId(@PathVariable Long courseId){
-        return ResponseEntity.ok(ApiResponse.success("Get modules successfully!", getModuleUseCase.getModulesByCourseId(courseId)));
+        List<Module> modules = getModuleUseCase.getModulesByCourseId(courseId);
+        return ResponseEntity.ok(ApiResponse.success("Get modules successfully!", restMapper.toResponseList(modules)));
     }
+
     @GetMapping("/modules/{moduleId}")
     public ResponseEntity<ApiResponse<ModuleResponse>> getModuleById(@PathVariable Long moduleId){
-        return ResponseEntity.ok(ApiResponse.success("Get module details successfully!", getModuleUseCase.getModuleById(moduleId)));
+        Module module = getModuleUseCase.getModuleById(moduleId);
+        return ResponseEntity.ok(ApiResponse.success("Get module details successfully!", restMapper.toResponse(module)));
     }
 
     @PostMapping("/{courseId}/modules")
     @PreAuthorize("hasAnyRole('INSTRUCTOR', 'ADMIN')")
     public ResponseEntity<ApiResponse<ModuleResponse>> addModule(@PathVariable Long courseId, @Valid @RequestBody ModuleUpsertRequest request){
-        return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.success("Module created successfully!", manageModuleUseCase.addModule(courseId,request)));
+        ModuleCommand command = restMapper.toCommand(request);
+        Module module = manageModuleUseCase.addModule(courseId, command);
+        return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.success("Module created successfully!", restMapper.toResponse(module)));
     }
 
     @PutMapping("/modules/{moduleId}")
     @PreAuthorize("hasAnyRole('INSTRUCTOR', 'ADMIN')")
     public ResponseEntity<ApiResponse<ModuleResponse>> updateModule(@PathVariable Long moduleId, @Valid @RequestBody ModuleUpsertRequest request){
-        return ResponseEntity.ok(ApiResponse.success("Module updated successfully!", manageModuleUseCase.updateModule(moduleId, request)));
+        ModuleCommand command = restMapper.toCommand(request);
+        Module module = manageModuleUseCase.updateModule(moduleId, command);
+        return ResponseEntity.ok(ApiResponse.success("Module updated successfully!", restMapper.toResponse(module)));
     }
 
     @DeleteMapping("/modules/{moduleId}")
@@ -48,5 +60,4 @@ public class ModuleController {
         manageModuleUseCase.deleteModule(moduleId);
         return ResponseEntity.ok(ApiResponse.success("Module deleted successfully!", null));
     }
-
 }

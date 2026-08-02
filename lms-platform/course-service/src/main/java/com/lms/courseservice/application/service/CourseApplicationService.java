@@ -1,11 +1,8 @@
 package com.lms.courseservice.application.service;
 
-import com.lms.courseservice.adapter.in.rest.dto.CourseCurriculumResponse;
-import com.lms.courseservice.adapter.in.rest.dto.CourseResponse;
-import com.lms.courseservice.adapter.in.rest.dto.CourseUpsertRequest;
-import com.lms.courseservice.adapter.out.persistence.mapper.CourseMapper;
 import com.lms.courseservice.application.port.in.ManageCourseUseCase;
 import com.lms.courseservice.application.port.in.GetCourseUseCase;
+import com.lms.courseservice.application.port.in.command.CourseCommand;
 import com.lms.courseservice.application.port.out.CategoryRepositoryPort;
 import com.lms.courseservice.application.port.out.CourseRepositoryPort;
 import com.lms.security.util.SecurityUtils;
@@ -29,41 +26,27 @@ public class CourseApplicationService implements GetCourseUseCase, ManageCourseU
 
     private final CourseRepositoryPort courseRepository;
     private final CategoryRepositoryPort categoryRepository;
-    private final CourseMapper courseMapper;
 
     // =========================================================
     // SLUG GENERATION
     // =========================================================
-
     private String normalizeToAsciiSlug(String title) {
-        if (title == null || title.isBlank()) {
-            return "course";
-        }
+        if (title == null || title.isBlank()) return "course";
         String processed = title.replace("đ", "d").replace("Đ", "D");
         String normalized = Normalizer.normalize(processed, Normalizer.Form.NFD);
         String ascii = normalized.replaceAll("\\p{InCombiningDiacriticalMarks}+", "");
-        return ascii.toLowerCase()
-                .trim()
-                .replaceAll("[^a-z0-9\\s-]", "")
-                .replaceAll("\\s+", "-")
-                .replaceAll("-+", "-")
-                .replaceAll("^-|-$", "");
+        return ascii.toLowerCase().trim().replaceAll("[^a-z0-9\\s-]", "").replaceAll("\\s+", "-").replaceAll("-+", "-").replaceAll("^-|-$", "");
     }
 
     private String generateSlug(String title) {
         String base = normalizeToAsciiSlug(title);
-        if (base.isBlank()) {
-            base = "course";
-        }
-        if (courseRepository.findBySlug(base).isEmpty()) {
-            return base;
-        }
+        if (base.isBlank()) base = "course";
+        if (courseRepository.findBySlug(base).isEmpty()) return base;
         String candidate;
         do {
             String suffix = UUID.randomUUID().toString().replace("-", "").substring(0, 4);
             candidate = base + "-" + suffix;
         } while (courseRepository.findBySlug(candidate).isPresent());
-
         return candidate;
     }
 
@@ -73,24 +56,23 @@ public class CourseApplicationService implements GetCourseUseCase, ManageCourseU
 
     @Override
     @Transactional(readOnly = true)
-    public List<CourseResponse> getAllPublishedCourses() {
-        return courseMapper.toResponseList(courseRepository.findAllByStatus(CourseStatus.PUBLISHED));
+    public List<Course> getAllPublishedCourses() {
+        return courseRepository.findAllByStatus(CourseStatus.PUBLISHED);
     }
 
     @Override
     @Transactional(readOnly = true)
-    public CourseResponse getCourseDetail(String slug) {
-        Course course = courseRepository.findBySlug(slug)
-                .orElseThrow(() -> new BusinessException(ErrorCode.COURSE_NOT_FOUND,"Course not found with slug: " + slug));
-        return courseMapper.toResponse(course);
+    public Course getCourseDetail(String slug) {
+        return courseRepository.findBySlug(slug)
+                .orElseThrow(() -> new BusinessException(ErrorCode.COURSE_NOT_FOUND, "Course not found with slug: " + slug));
     }
 
     @Override
     @Transactional(readOnly = true)
-    public CourseCurriculumResponse getCurriculum(Long courseId) {
-        Course course = courseRepository.findById(courseId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.COURSE_NOT_FOUND,"Course not found with id: " + courseId));
-        return courseMapper.toCurriculumResponse(course);
+    public Course getCurriculum(Long courseId) {
+        // load eager modules/lessons
+        return courseRepository.findByIdWithFullCurriculum(courseId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.COURSE_NOT_FOUND, "Course not found with id: " + courseId));
     }
 
     // =========================================================
@@ -100,62 +82,61 @@ public class CourseApplicationService implements GetCourseUseCase, ManageCourseU
     @Override
     @Transactional
     @PreAuthorize("hasAnyRole('INSTRUCTOR', 'ADMIN')")
-    public CourseResponse createCourse(CourseUpsertRequest request) {
+    public Course createCourse(CourseCommand request) {
         String instructorId = SecurityUtils.getCurrentUserId();
 
         Category category = null;
-        if (request.getCategoryId() != null) {
-            category = categoryRepository.findById(request.getCategoryId())
-                    .orElseThrow(() -> new BusinessException(ErrorCode.CATEGORY_NOT_FOUND,"Category not found with id: " + request.getCategoryId()));
+        if (request.categoryId() != null) {
+            category = categoryRepository.findById(request.categoryId())
+                    .orElseThrow(() -> new BusinessException(ErrorCode.CATEGORY_NOT_FOUND, "Category not found with id: " + request.categoryId()));
         }
 
-        String slug = generateSlug(request.getTitle());
+        String slug = generateSlug(request.title());
         Course course = Course.create(
-                request.getTitle(),
+                request.title(),
                 slug,
-                request.getSummary(),
-                request.getDescription(),
-                request.getPrice(),
-                request.getLevel(),
-                request.getThumbnailUrl(),
+                request.summary(),
+                request.description(),
+                request.price(),
+                request.level(),
+                request.thumbnailUrl(),
                 category,
                 instructorId
         );
-        Course savedCourse = courseRepository.save(course);
-        return courseMapper.toResponse(savedCourse);
+        return courseRepository.save(course);
     }
 
     @Override
     @Transactional
     @PreAuthorize("hasAnyRole('INSTRUCTOR', 'ADMIN')")
-    public CourseResponse updateCourse(Long id, CourseUpsertRequest request) {
+    public Course updateCourse(Long id, CourseCommand request) {
         Course course = courseRepository.findById(id)
-                .orElseThrow(() -> new BusinessException(ErrorCode.COURSE_NOT_FOUND,"Course not found with id: " + id));
+                .orElseThrow(() -> new BusinessException(ErrorCode.COURSE_NOT_FOUND, "Course not found with id: " + id));
 
         SecurityUtils.checkOwnership(course.getInstructor());
 
         course.updateCourseInfo(
-                request.getTitle(),
-                request.getSummary(),
-                request.getDescription(),
-                request.getPrice(),
-                request.getLevel(),
-                request.getThumbnailUrl()
+                request.title(),
+                request.summary(),
+                request.description(),
+                request.price(),
+                request.level(),
+                request.thumbnailUrl()
         );
 
-        if(request.getCategoryId() != null){
-            Category category = categoryRepository.findById(request.getCategoryId())
-                    .orElseThrow(() -> new BusinessException(ErrorCode.CATEGORY_NOT_FOUND, "Category not found with ID: " + request.getCategoryId()));
+        if(request.categoryId() != null){
+            Category category = categoryRepository.findById(request.categoryId())
+                    .orElseThrow(() -> new BusinessException(ErrorCode.CATEGORY_NOT_FOUND, "Category not found with ID: " + request.categoryId()));
             course.assignCategory(category);
         }
-        if(request.getStatus() == CourseStatus.PUBLISHED){
+
+        if(request.status() == CourseStatus.PUBLISHED){
             course.publish();
-        } else if(request.getStatus() == CourseStatus.ARCHIVED){
+        } else if(request.status() == CourseStatus.ARCHIVED){
             course.archive();
         }
 
-        Course updatedCourse = courseRepository.save(course);
-        return courseMapper.toResponse(updatedCourse);
+        return courseRepository.save(course);
     }
 
     @Override
@@ -163,10 +144,8 @@ public class CourseApplicationService implements GetCourseUseCase, ManageCourseU
     @PreAuthorize("hasAnyRole('INSTRUCTOR', 'ADMIN')")
     public void deleteCourse(Long id) {
         Course course = courseRepository.findById(id)
-                .orElseThrow(() -> new BusinessException(ErrorCode.COURSE_NOT_FOUND,"Course not found with id: " + id));
-
+                .orElseThrow(() -> new BusinessException(ErrorCode.COURSE_NOT_FOUND, "Course not found with id: " + id));
         SecurityUtils.checkOwnership(course.getInstructor());
-
         courseRepository.deleteById(id);
     }
 }

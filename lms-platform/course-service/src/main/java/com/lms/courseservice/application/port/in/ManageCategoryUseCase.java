@@ -1,10 +1,10 @@
 package com.lms.courseservice.application.port.in;
 
-import com.lms.courseservice.adapter.in.rest.dto.CategoryResponse;
-import com.lms.courseservice.adapter.in.rest.dto.CategoryUpsertRequest;
+import com.lms.courseservice.application.port.in.command.CategoryCommand;
+import com.lms.courseservice.domain.model.Category;
 
 public interface ManageCategoryUseCase {
-    CategoryResponse createCategory(CategoryUpsertRequest request);
-    CategoryResponse updateCategory(Long id, CategoryUpsertRequest request);
+    Category createCategory(CategoryCommand request);
+    Category updateCategory(Long id, CategoryCommand request);
     void deleteCategory(Long id);
 }

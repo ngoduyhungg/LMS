@@ -1,29 +1,26 @@
 package com.lms.courseservice.domain.model;
 
+import com.lms.courseservice.domain.shared.AuditInfo;
 import com.lms.shared.enums.ErrorCode;
 import com.lms.shared.exception.BusinessException;
-import jakarta.persistence.*;
 import lombok.*;
 
-@Table(name = "categories")
-@Entity
 @Getter
-@NoArgsConstructor(access = AccessLevel.PROTECTED) //cho JPA Proxy
-@AllArgsConstructor(access = AccessLevel.PRIVATE)
+@Setter
+@NoArgsConstructor
+@AllArgsConstructor
 @Builder
-public class Category extends com.lms.shared.entity.AuditableEntity {
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "parent_id")
+public class Category {
+    private Long id;
     private Category parent;
-    @Column(name = "name", length = 100, nullable = false)
     private String name;
-    @Column(name = "slug", length = 120, nullable = false, unique = true)
     private String slug;
-    @Column(name = "description", columnDefinition = "TEXT")
     private String description;
 
+    private AuditInfo auditInfo;
+
     // =========================================================
-    // DOMAIN BEHAVIORS (RICH DOMAIN MODEL)
+    // DOMAIN BEHAVIORS
     // =========================================================
 
     public static Category create(String name, String slug, String description, Category parent){
