@@ -1,7 +1,10 @@
 package com.lms.courseservice.adapter.in.rest;
 
 import com.lms.courseservice.adapter.in.rest.dto.*;
+import com.lms.courseservice.adapter.in.rest.mapper.CourseRestMapper;
 import com.lms.courseservice.application.port.in.*;
+import com.lms.courseservice.application.port.in.command.CourseCommand;
+import com.lms.courseservice.domain.model.Course;
 import com.lms.shared.dto.ApiResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -19,26 +22,28 @@ public class CourseController {
 
     private final GetCourseUseCase getCourseUseCase;
     private final ManageCourseUseCase manageCourseUseCase;
+    private final CourseRestMapper restMapper;
 
-    // =========================================================
-    // COURSE ENDPOINTS
-    // =========================================================
     @GetMapping
     public ResponseEntity<ApiResponse<List<CourseResponse>>> getAll() {
-        return ResponseEntity.ok(ApiResponse.success("Get list successfully!", getCourseUseCase.getAllPublishedCourses()));
+        List<Course> courses = getCourseUseCase.getAllPublishedCourses();
+        return ResponseEntity.ok(ApiResponse.success("Get list successfully!", restMapper.toResponseList(courses)));
     }
 
     @GetMapping("/{slug}")
     public ResponseEntity<ApiResponse<CourseResponse>> getBySlug(@PathVariable String slug) {
-        return ResponseEntity.ok(ApiResponse.success(getCourseUseCase.getCourseDetail(slug)));
+        Course course = getCourseUseCase.getCourseDetail(slug);
+        return ResponseEntity.ok(ApiResponse.success(restMapper.toResponse(course)));
     }
 
     @PostMapping
     @PreAuthorize("hasAnyRole('INSTRUCTOR','ADMIN')")
     public ResponseEntity<ApiResponse<CourseResponse>> createCourse(
             @Valid @RequestBody CourseUpsertRequest request) {
+        CourseCommand command = restMapper.toCommand(request);
+        Course course = manageCourseUseCase.createCourse(command);
         return ResponseEntity.status(HttpStatus.CREATED)
-                .body(ApiResponse.success(manageCourseUseCase.createCourse(request)));
+                .body(ApiResponse.success(restMapper.toResponse(course)));
     }
 
     @PutMapping("/{id}")
@@ -46,7 +51,9 @@ public class CourseController {
     public ResponseEntity<ApiResponse<CourseResponse>> updateCourse(
             @PathVariable Long id,
             @Valid @RequestBody CourseUpsertRequest request) {
-        return ResponseEntity.ok(ApiResponse.success(manageCourseUseCase.updateCourse(id, request)));
+        CourseCommand command = restMapper.toCommand(request);
+        Course course = manageCourseUseCase.updateCourse(id, command);
+        return ResponseEntity.ok(ApiResponse.success(restMapper.toResponse(course)));
     }
 
     @DeleteMapping("/{id}")
@@ -58,8 +65,7 @@ public class CourseController {
 
     @GetMapping("/{id}/curriculum")
     public ResponseEntity<ApiResponse<CourseCurriculumResponse>> getCurriculum(@PathVariable Long id) {
-        return ResponseEntity.ok(ApiResponse.success(getCourseUseCase.getCurriculum(id)));
+        Course course = getCourseUseCase.getCurriculum(id);
+        return ResponseEntity.ok(ApiResponse.success(restMapper.toCurriculumResponse(course)));
     }
-
-
 }

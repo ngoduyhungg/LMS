@@ -1,10 +1,10 @@
 package com.lms.courseservice.application.port.in;
 
-import com.lms.courseservice.adapter.in.rest.dto.LessonResponse;
-import com.lms.courseservice.adapter.in.rest.dto.LessonUpsertRequest;
+import com.lms.courseservice.application.port.in.command.LessonCommand;
+import com.lms.courseservice.domain.model.Lesson;
 
 public interface ManageLessonUseCase {
-    LessonResponse addLesson(Long moduleId, LessonUpsertRequest request);
-    LessonResponse updateLesson(Long lessonId, LessonUpsertRequest request);
+    Lesson addLesson(Long moduleId, LessonCommand request);
+    Lesson updateLesson(Long lessonId, LessonCommand request);
     void deleteLesson(Long lessonId);
 }

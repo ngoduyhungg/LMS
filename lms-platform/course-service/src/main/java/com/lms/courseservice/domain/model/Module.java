@@ -1,32 +1,28 @@
 package com.lms.courseservice.domain.model;
 
-import com.fasterxml.jackson.annotation.JsonIgnore;
-import jakarta.persistence.*;
+import com.lms.courseservice.domain.shared.AuditInfo;
 import lombok.*;
 
 import java.util.ArrayList;
 import java.util.List;
 
-@Table(name = "modules")
-@Entity
 @Getter
+@Setter
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class Module extends com.lms.shared.entity.AuditableEntity {
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "course_id", nullable = false)
+public class Module {
+    private Long id;
     private Course course;
-    @Column(name = "title", length = 255, nullable = false)
     private String title;
-    @Column(name = "sort_order", nullable = false)
+
     @Builder.Default
     private Integer sortOrder = 0;
-    @OneToMany(mappedBy = "module", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
-    @OrderBy("sortOrder ASC")
-    @JsonIgnore
+
     @Builder.Default
     private List<Lesson> lessons = new ArrayList<>();
+
+    private AuditInfo auditInfo;
 
     public static Module create(Course course, String title, Integer sortOrder){
         return Module.builder()
@@ -36,6 +32,7 @@ public class Module extends com.lms.shared.entity.AuditableEntity {
                 .lessons(new ArrayList<>())
                 .build();
     }
+
     public void updateDetails(String title, Integer sortOrder){
         this.title = title;
         if(sortOrder != null){

@@ -1,13 +1,11 @@
 package com.lms.courseservice.application.service;
 
-import com.lms.courseservice.adapter.in.rest.dto.LessonResponse;
-import com.lms.courseservice.adapter.in.rest.dto.LessonUpsertRequest;
-import com.lms.courseservice.adapter.out.persistence.mapper.LessonMapper;
 import com.lms.courseservice.application.port.in.GetLessonUseCase;
 import com.lms.courseservice.application.port.in.ManageLessonUseCase;
-import com.lms.courseservice.application.port.out.LessonRepositoryPort;
-import com.lms.courseservice.application.port.out.ModuleRepositoryPort;
+import com.lms.courseservice.application.port.in.command.LessonCommand;
+import com.lms.courseservice.application.port.out.CourseRepositoryPort;
 import com.lms.security.util.SecurityUtils;
+import com.lms.courseservice.domain.model.Course;
 import com.lms.courseservice.domain.model.Lesson;
 import com.lms.courseservice.domain.model.Module;
 import com.lms.shared.enums.ErrorCode;
@@ -19,85 +17,92 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 
-/**
- * Application Service quản lý Bài học (Lesson) và Tài liệu đính kèm (LessonResource).
- * Tuân thủ SRP: Chỉ chứa nghiệp vụ liên quan đến Lesson.
- */
 @Service
 @RequiredArgsConstructor
 public class LessonApplicationService implements ManageLessonUseCase, GetLessonUseCase {
 
-    private final LessonRepositoryPort lessonRepository;
-    private final ModuleRepositoryPort moduleRepository;
-    private final LessonMapper lessonMapper;
+    private final CourseRepositoryPort courseRepository;
 
-    // ===== READ USE CASES =====
-    public List<LessonResponse> getLessonsByModuleId(Long moduleId){
-        if(moduleRepository.findById(moduleId).isEmpty()){
-            throw new BusinessException(ErrorCode.MODULE_NOT_FOUND,"Module not found with ID: " + moduleId);
-        }
-        List<Lesson> lessons = lessonRepository.findAllByModuleIdOrderBySortOrder(moduleId);
-        return lessonMapper.toResponseList(lessons);
-    }
-    public LessonResponse getLessonById(Long lessonId){
-        Lesson lesson = lessonRepository.findById(lessonId).orElseThrow(() -> new BusinessException(ErrorCode.LESSON_NOT_FOUND,"Lesson not found with ID: " + lessonId));
-        return lessonMapper.toResponse(lesson);
+    @Override
+    @Transactional(readOnly = true)
+    public List<Lesson> getLessonsByModuleId(Long moduleId){
+        Module module = courseRepository.findModuleById(moduleId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.MODULE_NOT_FOUND,"Module not found with ID: " + moduleId));
+        return module.getLessons();
     }
 
-    // ===== COMMAND USE CASES (WRITE) =====
+    @Override
+    @Transactional(readOnly = true)
+    public Lesson getLessonById(Long lessonId){
+        return courseRepository.findLessonById(lessonId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.LESSON_NOT_FOUND,"Lesson not found with ID: " + lessonId));
+    }
+
     @Override
     @Transactional
     @PreAuthorize("hasAnyRole('INSTRUCTOR', 'ADMIN')")
-    public LessonResponse addLesson(Long moduleId, LessonUpsertRequest request) {
-        Module module = moduleRepository.findById(moduleId)
+    public Lesson addLesson(Long moduleId, LessonCommand request) {
+        Module module = courseRepository.findModuleById(moduleId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.MODULE_NOT_FOUND,"Module not found with id: " + moduleId));
 
-        SecurityUtils.checkOwnership(module.getCourse().getInstructor());
+        Course course = module.getCourse();
+        SecurityUtils.checkOwnership(course.getInstructor());
 
-        Lesson lesson = Lesson.create(
-                module ,request.getTitle(), request.getContent(), request.getVideoUrl(),
-                request.getDurationSeconds(), request.getLessonType(),
-                request.getIsPreview(), request.getSortOrder());
+        Lesson newLesson = Lesson.create(
+                module, request.title(), request.content(), request.videoUrl(),
+                request.durationSeconds(), request.lessonType(),
+                request.isPreview(), request.sortOrder());
 
-        if(request.getResources() != null){
-            request.getResources().forEach(res ->
-                    lesson.addResource(res.getTitle(), res.getFileUrl(), res.getFileType(), res.getFileSizeBytes())
+        if(request.resources() != null){
+            request.resources().forEach(res ->
+                    newLesson.addResource(res.title(), res.fileUrl(), res.fileType(), res.fileSizeBytes())
             );
         }
-        return lessonMapper.toResponse(lessonRepository.save(lesson));
+
+        module.getLessons().add(newLesson);
+        courseRepository.save(course); // Lưu Aggregate root sẽ tự lưu cascade
+
+        return newLesson;
     }
 
     @Override
     @Transactional
     @PreAuthorize("hasAnyRole('INSTRUCTOR', 'ADMIN')")
-    public LessonResponse updateLesson(Long lessonId, LessonUpsertRequest request) {
-        Lesson lesson = lessonRepository.findById(lessonId)
+    public Lesson updateLesson(Long lessonId, LessonCommand request) {
+        Lesson lesson = courseRepository.findLessonById(lessonId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.LESSON_NOT_FOUND,"Lesson not found with id: " + lessonId));
 
-        SecurityUtils.checkOwnership(lesson.getModule().getCourse().getInstructor());
+        Course course = lesson.getModule().getCourse();
+        SecurityUtils.checkOwnership(course.getInstructor());
+
         lesson.updateDetails(
-                request.getTitle(), request.getContent(), request.getVideoUrl(),
-                request.getDurationSeconds(), request.getLessonType(),
-                request.getIsPreview(), request.getSortOrder()
+                request.title(), request.content(), request.videoUrl(),
+                request.durationSeconds(), request.lessonType(),
+                request.isPreview(), request.sortOrder()
         );
+
         lesson.clearResources();
-        if(request.getResources() != null){
-            request.getResources().forEach(res ->
-                    lesson.addResource(res.getTitle(), res.getFileUrl(), res.getFileType(), res.getFileSizeBytes())
+        if(request.resources() != null){
+            request.resources().forEach(res ->
+                    lesson.addResource(res.title(), res.fileUrl(), res.fileType(), res.fileSizeBytes())
             );
         }
-        return lessonMapper.toResponse(lessonRepository.save(lesson));
+
+        courseRepository.save(course);
+        return lesson;
     }
 
     @Override
     @Transactional
     @PreAuthorize("hasAnyRole('INSTRUCTOR', 'ADMIN')")
     public void deleteLesson(Long lessonId) {
-        Lesson lesson = lessonRepository.findById(lessonId)
+        Lesson lesson = courseRepository.findLessonById(lessonId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.LESSON_NOT_FOUND,"Lesson not found with id: " + lessonId));
 
-        SecurityUtils.checkOwnership(lesson.getModule().getCourse().getInstructor());
+        Course course = lesson.getModule().getCourse();
+        SecurityUtils.checkOwnership(course.getInstructor());
 
-        lessonRepository.deleteById(lessonId);
+        lesson.getModule().getLessons().removeIf(l -> l.getId().equals(lessonId));
+        courseRepository.save(course);
     }
 }
