@@ -2,6 +2,7 @@ package com.lms.courseservice.adapter.out.persistence;
 
 import com.lms.courseservice.adapter.out.persistence.entity.CategoryJpaEntity;
 import com.lms.courseservice.adapter.out.persistence.mapper.CategoryPersistenceMapper;
+import com.lms.courseservice.adapter.out.persistence.repository.CategoryJpaRepository;
 import com.lms.courseservice.application.port.out.CategoryRepositoryPort;
 import com.lms.courseservice.domain.model.Category;
 import lombok.RequiredArgsConstructor;

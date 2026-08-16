@@ -2,6 +2,7 @@ package com.lms.courseservice.application.service;
 
 import com.lms.courseservice.application.port.in.command.CourseCommand;
 import com.lms.courseservice.application.port.out.CategoryRepositoryPort;
+import com.lms.courseservice.application.port.out.CourseProjectionPort;
 import com.lms.courseservice.application.port.out.CourseRepositoryPort;
 import com.lms.security.util.SecurityUtils;
 import com.lms.courseservice.domain.enums.CourseStatus;
@@ -43,6 +44,7 @@ class CourseApplicationServiceTest {
     private MockedStatic<SecurityUtils> mockedSecurityUtils;
 
     private final String CURRENT_USER_ID = "instructor-uuid-123";
+    @Mock private CourseProjectionPort courseProjectionPort;
     private Category mockCategory;
 
     @BeforeEach

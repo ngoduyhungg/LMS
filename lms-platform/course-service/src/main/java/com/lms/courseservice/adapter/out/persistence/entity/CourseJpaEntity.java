@@ -7,8 +7,8 @@ import jakarta.persistence.*;
 import lombok.*;
 
 import java.math.BigDecimal;
-import java.util.ArrayList;
-import java.util.List;
+import java.util.LinkedHashSet;
+import java.util.Set;
 
 @Entity
 @Table(name = "courses")
@@ -55,8 +55,30 @@ public class CourseJpaEntity extends AuditableEntity {
     @Column(name = "level", nullable = false, length = 30)
     private CourseLevel level = CourseLevel.BEGINNER;
 
-    @OneToMany(mappedBy = "course", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
+    @OneToMany(
+            mappedBy = "course",
+            cascade = CascadeType.ALL,
+            orphanRemoval = true,
+            fetch = FetchType.LAZY
+    )
     @OrderBy("sortOrder ASC")
     @Builder.Default
-    private List<ModuleJpaEntity> modules = new ArrayList<>();
+    private Set<ModuleJpaEntity> modules = new LinkedHashSet<>();
+
+    public void setModules(Set<ModuleJpaEntity> modules) {
+        this.modules.clear();
+
+        if (modules != null) {
+            modules.forEach(this::addModule);
+        }
+    }
+
+    public void addModule(ModuleJpaEntity module) {
+        if (module == null) {
+            return;
+        }
+
+        modules.add(module);
+        module.setCourse(this);
+    }
 }

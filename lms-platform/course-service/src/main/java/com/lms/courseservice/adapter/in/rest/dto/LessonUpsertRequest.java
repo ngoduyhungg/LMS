@@ -26,7 +26,6 @@ public class LessonUpsertRequest {
     private Boolean isPreview;
     @Min(0)
     private Integer sortOrder;
-    @Valid
-    private List<LessonResourceRequest> resources;
+    private List<@Valid LessonResourceRequest> resources;
 
 }

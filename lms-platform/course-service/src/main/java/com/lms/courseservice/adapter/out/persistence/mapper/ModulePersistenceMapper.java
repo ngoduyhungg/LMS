@@ -2,10 +2,7 @@ package com.lms.courseservice.adapter.out.persistence.mapper;
 
 import com.lms.courseservice.adapter.out.persistence.entity.ModuleJpaEntity;
 import com.lms.courseservice.domain.model.Module;
-import org.mapstruct.Builder;
-import org.mapstruct.Mapper;
-import org.mapstruct.Mapping;
-import org.mapstruct.ReportingPolicy;
+import org.mapstruct.*;
 
 @Mapper(componentModel = "spring", unmappedTargetPolicy = ReportingPolicy.IGNORE, uses = {LessonPersistenceMapper.class}, builder = @Builder(disableBuilder = true))
 public interface ModulePersistenceMapper {
@@ -19,4 +16,17 @@ public interface ModulePersistenceMapper {
     @Mapping(target = "createdAt", source = "auditInfo.createdAt")
     @Mapping(target = "updatedAt", source = "auditInfo.updatedAt")
     ModuleJpaEntity toEntity(Module domain);
+
+    @AfterMapping
+    default void setLessonBackReferences(
+            @MappingTarget ModuleJpaEntity entity
+    ) {
+        if (entity.getLessons() == null) {
+            return;
+        }
+
+        entity.getLessons().forEach(lesson ->
+                lesson.setModule(entity)
+        );
+    }
 }

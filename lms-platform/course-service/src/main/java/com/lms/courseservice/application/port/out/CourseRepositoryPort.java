@@ -36,4 +36,6 @@ public interface CourseRepositoryPort {
     Optional<Course> findByIdWithFullCurriculum(Long id);
     Optional<Module> findModuleById(Long moduleId);
     Optional<Lesson> findLessonById(Long lessonId);
+    long countLessonsByCourseId(Long courseId);
+    boolean existsLessonInCourse(Long lessonId, Long courseId);
 }

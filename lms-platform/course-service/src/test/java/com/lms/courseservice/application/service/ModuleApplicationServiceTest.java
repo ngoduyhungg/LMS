@@ -1,6 +1,7 @@
 package com.lms.courseservice.application.service;
 
 import com.lms.courseservice.application.port.in.command.ModuleCommand;
+import com.lms.courseservice.application.port.out.CourseProjectionPort;
 import com.lms.courseservice.application.port.out.CourseRepositoryPort;
 import com.lms.security.util.SecurityUtils;
 import com.lms.courseservice.domain.model.Course;
@@ -15,6 +16,7 @@ import org.mockito.Mock;
 import org.mockito.MockedStatic;
 import org.mockito.Mockito;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.test.util.ReflectionTestUtils;
 
 import java.util.ArrayList;
 import java.util.Optional;
@@ -34,6 +36,7 @@ class ModuleApplicationServiceTest {
 
     private MockedStatic<SecurityUtils> mockedSecurityUtils;
     private Course mockCourse;
+    @Mock private CourseProjectionPort courseProjectionPort;
 
     @BeforeEach
     void setUp() {
@@ -68,7 +71,7 @@ class ModuleApplicationServiceTest {
 
         verify(courseRepository, times(1)).save(argThat(course ->
                 course.getModules().size() == 1 &&
-                        course.getModules().get(0).getTitle().equals("Microservices 101")
+                        course.getModules().getFirst().getTitle().equals("Microservices 101")
         ));
     }
 
@@ -76,17 +79,32 @@ class ModuleApplicationServiceTest {
     @DisplayName("Sửa Module thành công thông qua Aggregate Course")
     void should_UpdateModule_Successfully() {
         Long moduleId = 1L;
+        Long courseId = 99L; // Cấp 1 ID giả cho Course
+
+        // 1. Gán ID cho Course để tránh null
+        ReflectionTestUtils.setField(mockCourse, "id", courseId);
+
+        // 2. Tạo Module và gán ID cho Module để đoạn stream().filter() không bị lỗi
         Module existingModule = Module.create(mockCourse, "Old Title", 0);
+        ReflectionTestUtils.setField(existingModule, "id", moduleId);
+
         mockCourse.getModules().add(existingModule);
 
         // Dùng ModuleCommand thay cho DTO
         ModuleCommand command = new ModuleCommand("New Title", 5);
 
+        // 3. Mock tìm partial module
         when(courseRepository.findModuleById(moduleId)).thenReturn(Optional.of(existingModule));
+
+        // 4. THÊM DÒNG NÀY ĐỂ FIX LỖI: Mock tìm Full Course
+        when(courseRepository.findByIdWithFullCurriculum(courseId)).thenReturn(Optional.of(mockCourse));
+
         when(courseRepository.save(any(Course.class))).thenAnswer(inv -> inv.getArgument(0));
 
+        // 5. Thực thi
         moduleApplicationService.updateModule(moduleId, command);
 
+        // 6. Kiểm tra
         verify(courseRepository, times(1)).save(argThat(course ->
                 course.getModules().get(0).getTitle().equals("New Title") &&
                         course.getModules().get(0).getSortOrder() == 5

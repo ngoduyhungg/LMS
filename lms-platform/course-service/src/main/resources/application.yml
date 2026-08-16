@@ -30,6 +30,11 @@ spring:
     locations: classpath:db/migration
     baseline-on-migrate: true
 
+  kafka:
+    bootstrap-servers: localhost:9092
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
   # ── Security: Keycloak as OAuth2 Resource Server ────────────────
   # Course Service does NOT generate tokens — it only VALIDATES them
   # Keycloak's JWK Set URI is used to verify JWT signatures (no DB needed!)
