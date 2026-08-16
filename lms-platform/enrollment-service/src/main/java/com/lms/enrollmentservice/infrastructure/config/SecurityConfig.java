@@ -1,4 +1,4 @@
-package com.lms.courseservice.infrastructure.config;
+package com.lms.enrollmentservice.infrastructure.config;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;

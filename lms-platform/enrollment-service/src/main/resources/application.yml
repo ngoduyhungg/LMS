@@ -1,13 +1,13 @@
 server:
-  port: 8081
+  port: 8082
 
 spring:
   application:
-    name: course-service   # Used as OTel service.name
+    name: enrollment-service
 
-  # ── Database: course_db (isolated per service) ─────────────────
+  # ── Database: enrollment_db (isolated per service) ─────────────
   datasource:
-    url: jdbc:postgresql://localhost:5433/course_db
+    url: jdbc:postgresql://localhost:5433/enrollment_db
     username: postgres
     password: postgres
     driver-class-name: org.postgresql.Driver
@@ -29,50 +29,53 @@ spring:
     enabled: true
     locations: classpath:db/migration
     baseline-on-migrate: true
-
-  # ── Security: Keycloak as OAuth2 Resource Server ────────────────
-  # Course Service does NOT generate tokens — it only VALIDATES them
-  # Keycloak's JWK Set URI is used to verify JWT signatures (no DB needed!)
+  # ── Kafka ───────────────────────────────────────────────────────
+  kafka:
+    bootstrap-servers: localhost:9092
+  # ── Security: Keycloak as OAuth2 Resource Server ───────────────
+  # Enrollment Service does NOT generate tokens — it only VALIDATES them
   security:
     oauth2:
       resourceserver:
         jwt:
-          # Keycloak JWK Set endpoint — Spring fetches public keys automatically
           jwk-set-uri: http://localhost:8180/realms/lms-realm/protocol/openid-connect/certs
-          # issuer-uri enables token issuer validation (recommended for production)
           issuer-uri: http://localhost:8180/realms/lms-realm
 
-# ── Observability ───────────────────────────────────────────────────
+# ── Observability ─────────────────────────────────────────────────
 management:
   endpoints:
     web:
       exposure:
         include: health,info,metrics,prometheus,loggers
+
   endpoint:
     health:
       show-details: always
-  # Micrometer Tracing → OTel SDK → Jaeger
+
   tracing:
     sampling:
-      probability: 1.0   # 100% in dev; use 0.1 in production
-  # OTLP Exporter config (sends to Jaeger OTLP receiver)
+      probability: 1.0
+
   otlp:
     tracing:
-      endpoint: http://localhost:4318/v1/traces   # OTLP HTTP
+      endpoint: http://localhost:4318/v1/traces
       timeout: 5s
     metrics:
       export:
         step: 10s
 
-# ── OpenTelemetry Resource Attributes ──────────────────────────────
+# ── OpenTelemetry Resource Attributes ─────────────────────────────
 otel:
   service:
     name: ${spring.application.name}
+
   exporter:
     otlp:
       endpoint: http://localhost:4318
       protocol: http/protobuf
-  propagators: tracecontext,baggage   # W3C Trace Context (standard)
+
+  propagators: tracecontext,baggage
+
   instrumentation:
     spring-web:
       enabled: true
@@ -81,11 +84,25 @@ otel:
     jdbc:
       enabled: true
 
-# ── Logging with Trace IDs injected automatically ──────────────────
+# ── Logging with Trace IDs injected automatically ─────────────────
 logging:
   pattern:
     level: "%5p [${spring.application.name:},%X{traceId:-},%X{spanId:-}]"
+
   level:
-    "[org.springframework.security]": DEBUG   # remove in production
+    "[org.springframework.security]": DEBUG
     "[org.hibernate.SQL]": DEBUG
     "[com.lms]": DEBUG
+# ── Object Storage (S3 / MinIO) ───────────────────────────────────
+app:
+  storage:
+    s3:
+      endpoint: ${S3_ENDPOINT:http://localhost:9000}
+      region: ${S3_REGION:us-east-1}
+      access-key: ${S3_ACCESS_KEY:minioadmin}
+      secret-key: ${S3_SECRET_KEY:minioadmin}
+      bucket: ${S3_BUCKET:lms-certificates}
+      # path-style-access: Bắt buộc = true cho MinIO local để dùng URL dạng http://localhost:9000/bucket/...
+      # Nếu = false, SDK sẽ cố trỏ tới http://bucket.localhost:9000/... (cần DNS server).
+      # Khi lên Production AWS S3 có thể set false.
+      path-style-access: ${S3_PATH_STYLE_ACCESS:true}

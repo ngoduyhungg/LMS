@@ -1,4 +1,4 @@
-package com.lms.courseservice.infrastructure.config;
+package com.lms.enrollmentservice.infrastructure.config;
 
 import com.lms.shared.dto.ApiResponse;
 import com.lms.shared.enums.ErrorCode;
