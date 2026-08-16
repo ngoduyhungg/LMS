@@ -28,6 +28,8 @@
         <module>shared-kernel</module>
         <module>lms-security</module>
         <module>course-service</module>
+        <module>enrollment-service</module>
+        <module>user-service</module>
         <!-- <module>api-gateway</module> -->
     </modules>
 

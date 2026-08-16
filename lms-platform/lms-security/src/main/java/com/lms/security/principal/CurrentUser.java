@@ -9,7 +9,7 @@ public record CurrentUser(
         String username,
 
         String email,
-
+        String fullName,
         Set<String> roles
 
 ) {

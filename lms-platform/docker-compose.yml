@@ -25,7 +25,7 @@ services:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
       POSTGRES_DB: postgres
-      POSTGRES_MULTIPLE_DATABASES: keycloak_db,course_db,enrollment_db,notification_db
+      POSTGRES_MULTIPLE_DATABASES: keycloak_db,course_db,enrollment_db,notification_db,user_db
     volumes:
       - lms_postgres_data:/var/lib/postgresql/data
       # Prefix "10-" ensures this script runs before any other init scripts.
@@ -41,7 +41,55 @@ services:
       timeout: 5s
       retries: 10
       start_period: 15s
+  # ============================================================
+  # KAFKA — Event Streaming
+  # Host applications:      localhost:9092
+  # Docker containers:      kafka:29092
+  # ============================================================
+  kafka:
+    image: apache/kafka:4.1.1
+    container_name: lms-kafka
+    restart: unless-stopped
 
+    environment:
+      # KRaft mode — no ZooKeeper required
+      KAFKA_NODE_ID: 1
+      KAFKA_PROCESS_ROLES: broker,controller
+
+      # Listeners
+      KAFKA_LISTENERS: CONTROLLER://:29093,INTERNAL://:29092,EXTERNAL://:9092
+      KAFKA_ADVERTISED_LISTENERS: INTERNAL://kafka:29092,EXTERNAL://localhost:9092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,INTERNAL:PLAINTEXT,EXTERNAL:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: INTERNAL
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+
+      # Single-node KRaft cluster
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka:29093
+
+      # Required for single broker development
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
+
+      # Convenient for local development
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
+
+    ports:
+      - "9092:9092"
+
+    volumes:
+      - lms_kafka_data:/var/lib/kafka/data
+
+    networks:
+      - lms-network
+
+    healthcheck:
+      test: ["CMD-SHELL", "/opt/kafka/bin/kafka-topics.sh --bootstrap-server localhost:9092 --list > /dev/null 2>&1 || exit 1"]
+      interval: 10s
+      timeout: 10s
+      retries: 10
+      start_period: 20s
   # ============================================================
   # JAEGER — All-in-one distributed tracing backend
   # Must start BEFORE Keycloak so the OTLP endpoint is ready
@@ -238,18 +286,62 @@ services:
       - prometheus
     networks:
       - lms-network
+  # ============================================================
+  # MINIO — S3-Compatible Object Storage (Local Development)
+  # API: http://localhost:9000 | Console: http://localhost:9001
+  # ============================================================
+  minio:
+    image: minio/minio:latest
+    container_name: lms-minio
+    restart: unless-stopped
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    volumes:
+      - lms_minio_data:/data
+    networks:
+      - lms-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
 
+  # Service phụ trợ: Tự động tạo bucket 'lms-certificates' khi MinIO khởi động xong
+  minio-createbucket:
+    image: minio/mc:latest
+    container_name: lms-minio-setup
+    depends_on:
+      minio:
+        condition: service_healthy
+    networks:
+      - lms-network
+    entrypoint: >
+      /bin/sh -c "
+      /usr/bin/mc config host add myminio http://minio:9000 minioadmin minioadmin;
+      /usr/bin/mc mb myminio/lms-certificates --ignore-existing;
+      /usr/bin/mc anonymous set download myminio/lms-certificates;
+      exit 0;
+      "
 # ============================================================
 # VOLUMES
 # ============================================================
 volumes:
   lms_postgres_data:
     driver: local
+  lms_kafka_data:
+    driver: local
   lms_prometheus_data:
     driver: local
   lms_grafana_data:
     driver: local
-
+  lms_minio_data:
+    driver: local
 # ============================================================
 # NETWORKS
 # ============================================================

@@ -35,6 +35,7 @@ public class CurrentUserProvider {
                 jwtAuth.getName(),
 
                 jwtAuth.getToken().getClaimAsString("email"),
+                jwtAuth.getToken().getClaimAsString("name"),
 
                 roles
 
