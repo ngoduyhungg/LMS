@@ -1,4 +1,4 @@
-package com.lms.courseservice.adapter.out.persistence;
+package com.lms.courseservice.adapter.out.persistence.repository;
 
 
 import com.lms.courseservice.adapter.out.persistence.entity.CourseJpaEntity;

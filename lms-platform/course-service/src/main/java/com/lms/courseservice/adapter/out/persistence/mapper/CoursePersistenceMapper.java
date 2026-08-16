@@ -2,10 +2,7 @@ package com.lms.courseservice.adapter.out.persistence.mapper;
 
 import com.lms.courseservice.adapter.out.persistence.entity.CourseJpaEntity;
 import com.lms.courseservice.domain.model.Course;
-import org.mapstruct.Builder;
-import org.mapstruct.Mapper;
-import org.mapstruct.Mapping;
-import org.mapstruct.ReportingPolicy;
+import org.mapstruct.*;
 
 @Mapper(
         componentModel = "spring",
@@ -23,4 +20,18 @@ public interface CoursePersistenceMapper {
     @Mapping(target = "createdAt", source = "auditInfo.createdAt")
     @Mapping(target = "updatedAt", source = "auditInfo.updatedAt")
     CourseJpaEntity toEntity(Course domain);
+
+    @AfterMapping
+    default void setModuleBackReferences(
+            @MappingTarget CourseJpaEntity entity
+    ) {
+        if (entity.getModules() == null) {
+            return;
+        }
+
+        entity.getModules().forEach(module ->
+                module.setCourse(entity)
+        );
+    }
+
 }

@@ -1,4 +1,4 @@
-package com.lms.courseservice.adapter.out.persistence;
+package com.lms.courseservice.adapter.out.persistence.repository;
 
 import com.lms.courseservice.adapter.out.persistence.entity.CategoryJpaEntity;
 import org.springframework.data.jpa.repository.JpaRepository;
