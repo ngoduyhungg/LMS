@@ -4,16 +4,44 @@ server:
 spring:
   application:
     name: api-gateway
-  cloud:
-    gateway:
-      routes:
-        - id: course-service-route
-          uri: http://localhost:8081
-          predicates:
-            - Path=/api/courses/**
 
-  security:
-    oauth2:
-      resourceserver:
-        jwt:
-          jwk-set-uri: http://localhost:8180/realms/lms-realm/protocol/openid-connect/certs
+  cloud:
+    discovery:
+      enabled: false
+    autoconfigure:
+      exclude:
+        - org.springframework.cloud.client.discovery.simple.SimpleDiscoveryClientAutoConfiguration
+        # Thêm các cấu hình có thể gây nhiễu nếu cần thiết (không bắt buộc nhưng an toàn)
+        - org.springframework.boot.autoconfigure.web.servlet.WebMvcAutoConfiguration
+    gateway:
+      server:
+        webflux:
+          routes:
+            - id: course-service
+              uri: ${COURSE_SERVICE_URL:http://localhost:8081}
+              predicates:
+                - Path=/api/courses/**,/api/categories/**
+
+            - id: enrollment-service
+              uri: ${ENROLLMENT_SERVICE_URL:http://localhost:8082}
+              predicates:
+                - Path=/api/enrollments/**,/api/admin/enrollments/**,/api/certificates/**,/api/instructor/courses/**
+
+            - id: user-service
+              uri: ${USER_SERVICE_URL:http://localhost:8083}
+              predicates:
+                - Path=/api/users/**
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+
+  endpoint:
+    health:
+      show-details: always
+
+app:
+  cors:
+    allowed-origins: ${APP_CORS_ALLOWED_ORIGINS:http://localhost:3000}

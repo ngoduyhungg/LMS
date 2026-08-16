@@ -7,7 +7,7 @@ spring:
 
   # ── Database: course_db (isolated per service) ─────────────────
   datasource:
-    url: jdbc:postgresql://localhost:5433/course_db
+    url: ${DB_URL:jdbc:postgresql://localhost:5433/course_db}
     username: postgres
     password: postgres
     driver-class-name: org.postgresql.Driver
@@ -31,10 +31,11 @@ spring:
     baseline-on-migrate: true
 
   kafka:
-    bootstrap-servers: localhost:9092
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
     producer:
       key-serializer: org.apache.kafka.common.serialization.StringSerializer
       value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+
   # ── Security: Keycloak as OAuth2 Resource Server ────────────────
   # Course Service does NOT generate tokens — it only VALIDATES them
   # Keycloak's JWK Set URI is used to verify JWT signatures (no DB needed!)
@@ -43,9 +44,9 @@ spring:
       resourceserver:
         jwt:
           # Keycloak JWK Set endpoint — Spring fetches public keys automatically
-          jwk-set-uri: http://localhost:8180/realms/lms-realm/protocol/openid-connect/certs
+          jwk-set-uri: ${KEYCLOAK_JWK_SET_URI:http://localhost:8180/realms/lms-realm/protocol/openid-connect/certs}
           # issuer-uri enables token issuer validation (recommended for production)
-          issuer-uri: http://localhost:8180/realms/lms-realm
+          issuer-uri: ${KEYCLOAK_ISSUER_URI:http://localhost:8180/realms/lms-realm}
 
 # ── Observability ───────────────────────────────────────────────────
 management:
@@ -63,7 +64,7 @@ management:
   # OTLP Exporter config (sends to Jaeger OTLP receiver)
   otlp:
     tracing:
-      endpoint: http://localhost:4318/v1/traces   # OTLP HTTP
+      endpoint: ${OTLP_TRACING_ENDPOINT:http://localhost:4318/v1/traces}   # OTLP HTTP
       timeout: 5s
     metrics:
       export:
@@ -75,7 +76,7 @@ otel:
     name: ${spring.application.name}
   exporter:
     otlp:
-      endpoint: http://localhost:4318
+      endpoint: ${OTLP_ENDPOINT:http://localhost:4318}
       protocol: http/protobuf
   propagators: tracecontext,baggage   # W3C Trace Context (standard)
   instrumentation:

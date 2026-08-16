@@ -7,7 +7,7 @@ spring:
 
   # ── Database: enrollment_db (isolated per service) ─────────────
   datasource:
-    url: jdbc:postgresql://localhost:5433/enrollment_db
+    url: ${DB_URL:jdbc:postgresql://localhost:5433/enrollment_db}
     username: postgres
     password: postgres
     driver-class-name: org.postgresql.Driver
@@ -31,15 +31,15 @@ spring:
     baseline-on-migrate: true
   # ── Kafka ───────────────────────────────────────────────────────
   kafka:
-    bootstrap-servers: localhost:9092
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
   # ── Security: Keycloak as OAuth2 Resource Server ───────────────
   # Enrollment Service does NOT generate tokens — it only VALIDATES them
   security:
     oauth2:
       resourceserver:
         jwt:
-          jwk-set-uri: http://localhost:8180/realms/lms-realm/protocol/openid-connect/certs
-          issuer-uri: http://localhost:8180/realms/lms-realm
+          jwk-set-uri: ${KEYCLOAK_JWK_SET_URI:http://localhost:8180/realms/lms-realm/protocol/openid-connect/certs}
+          issuer-uri: ${KEYCLOAK_ISSUER_URI:http://localhost:8180/realms/lms-realm}
 
 # ── Observability ─────────────────────────────────────────────────
 management:
@@ -58,7 +58,7 @@ management:
 
   otlp:
     tracing:
-      endpoint: http://localhost:4318/v1/traces
+      endpoint: ${OTLP_TRACING_ENDPOINT:http://localhost:4318/v1/traces}
       timeout: 5s
     metrics:
       export:
@@ -71,7 +71,7 @@ otel:
 
   exporter:
     otlp:
-      endpoint: http://localhost:4318
+      endpoint: ${OTLP_ENDPOINT:http://localhost:4318}
       protocol: http/protobuf
 
   propagators: tracecontext,baggage
@@ -106,3 +106,7 @@ app:
       # Nếu = false, SDK sẽ cố trỏ tới http://bucket.localhost:9000/... (cần DNS server).
       # Khi lên Production AWS S3 có thể set false.
       path-style-access: ${S3_PATH_STYLE_ACCESS:true}
+course-service:
+  url: ${COURSE_SERVICE_URL:http://localhost:8081}
+user-service:
+  url: ${USER_SERVICE_URL:http://localhost:8083}

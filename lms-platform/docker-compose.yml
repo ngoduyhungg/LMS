@@ -41,6 +41,7 @@ services:
       timeout: 5s
       retries: 10
       start_period: 15s
+
   # ============================================================
   # KAFKA — Event Streaming
   # Host applications:      localhost:9092
@@ -90,17 +91,9 @@ services:
       timeout: 10s
       retries: 10
       start_period: 20s
+
   # ============================================================
   # JAEGER — All-in-one distributed tracing backend
-  # Must start BEFORE Keycloak so the OTLP endpoint is ready
-  # when Keycloak begins emitting spans on startup.
-  #
-  # Key ports:
-  #   16686 → Jaeger Query UI
-  #   4317  → OTLP/gRPC receiver  (used by KC_TRACING_ENDPOINT)
-  #   4318  → OTLP/HTTP receiver
-  #   14268 → Jaeger Thrift HTTP  (legacy; kept for compatibility)
-  #   14269 → Admin/health port   (used by healthcheck; NOT exposed to host)
   # ============================================================
   jaeger:
     image: jaegertracing/all-in-one:1.62.0
@@ -115,13 +108,9 @@ services:
       - "4317:4317"
       - "4318:4318"
       - "14268:14268"
-      # 14269 (admin) intentionally NOT exposed — healthcheck uses it internally
     networks:
       - lms-network
     healthcheck:
-      # Port 14269 is Jaeger's dedicated admin/health port.
-      # It exists inside the container even though it is not exposed to the host.
-      # This endpoint returns HTTP 200 when Jaeger is ready.
       test: ["CMD-SHELL", "wget -qO- http://localhost:14269/ > /dev/null 2>&1 || exit 1"]
       interval: 10s
       timeout: 5s
@@ -130,36 +119,6 @@ services:
 
   # ============================================================
   # KEYCLOAK 26.2.0 — Identity & Access Management
-  #
-  # CUSTOM IMAGE (docker/keycloak/Dockerfile):
-  #   The Dockerfile runs `kc.sh build` with KC_TRACING_ENABLED=true
-  #   baked in as a build-time option. This prevents the error:
-  #     "build time option UNAVAILABLE: tracing-enabled"
-  #   and its cascading "quarkus.datasource.jdbc.telemetry" exception.
-  #
-  # REALM IMPORT:
-  #   --import-realm loads files from /opt/keycloak/data/import/ on
-  #   FIRST startup only. If the realm already exists in keycloak_db,
-  #   import is silently skipped.
-  #
-  # "SESSION NOT BOUND TO A REALM" FIX:
-  #   Root cause: Keycloak 26 introduced full support for the Organizations
-  #   feature. Its event listener fires during realm bootstrap/import and
-  #   tries to resolve the realm from a session context that is not yet
-  #   fully initialized — throwing "Session not bound to a realm".
-  #   This is a documented KC 26 regression (GitHub issue tracker).
-  #   Fix: --features-disabled=organization
-  #   Impact: disables only the B2B multi-tenancy Organizations feature.
-  #   Standard RBAC (ADMIN / INSTRUCTOR / STUDENT roles, JWT, OIDC) is
-  #   completely unaffected.
-  #
-  # MANAGEMENT PORT (9000):
-  #   Since KC 26, health and metrics endpoints moved from the main HTTP
-  #   port (8080) to a dedicated management port (9000). The healthcheck
-  #   below uses port 9000 accordingly.
-  #
-  # Admin UI: http://localhost:8180/admin   (admin / admin)
-  # JWKS URI: http://localhost:8180/realms/lms-realm/protocol/openid-connect/certs
   # ============================================================
   keycloak:
     build:
@@ -171,47 +130,19 @@ services:
     command: start-dev --import-realm --features-disabled=organization
 
     environment:
-      # ── Database ──────────────────────────────────────────────
       KC_DB: postgres
       KC_DB_URL: jdbc:postgresql://postgres:5432/keycloak_db
       KC_DB_USERNAME: postgres
       KC_DB_PASSWORD: postgres
-      # KC_DB_SCHEMA omitted — "public" is the PostgreSQL default
-
-      # ── Admin credentials ──────────────────────────────────────
-      # KEYCLOAK_ADMIN / KEYCLOAK_ADMIN_PASSWORD are the correct, current
-      # env vars for the initial admin user. NOT deprecated.
-      # (The deprecated ones from the Wildfly era were KEYCLOAK_USER /
-      # KEYCLOAK_PASSWORD, removed in Keycloak 17.)
       KEYCLOAK_ADMIN: admin
       KEYCLOAK_ADMIN_PASSWORD: admin
-
-      # ── HTTP / Hostname ────────────────────────────────────────
-      # In start-dev, Keycloak auto-detects the hostname from the request.
-      # No KC_HOSTNAME needed for local development.
-      # REMOVED (Hostname v1 API, deleted in KC 26):
-      #   KC_HOSTNAME_PORT, KC_HOSTNAME_STRICT, KC_HOSTNAME_STRICT_HTTPS
       KC_HTTP_ENABLED: "true"
       KC_HTTP_PORT: "8080"
-
-      # ── Observability features ─────────────────────────────────
       KC_HEALTH_ENABLED: "true"
       KC_METRICS_ENABLED: "true"
       KC_LOG_LEVEL: INFO
-
-      # ── OpenTelemetry Tracing ──────────────────────────────────
-      # KC_TRACING_ENABLED / KC_TRACING_ENDPOINT are RUNTIME options
-      # that are safe to set here because KC_TRACING_ENABLED=true was
-      # already baked in at BUILD TIME by the Dockerfile.
-      #
-      # Endpoint points to the Jaeger container (internal DNS, port 4317 gRPC).
       KC_TRACING_ENABLED: "true"
       KC_TRACING_ENDPOINT: "http://jaeger:4317"
-
-      # Service name in telemetry/traces:
-      # KC_TRACING_SERVICE_NAME was deprecated in KC 26.2.
-      # KC_TELEMETRY_SERVICE_NAME is the current replacement.
-      # We set only the current name; the old one is omitted.
       KC_TELEMETRY_SERVICE_NAME: "keycloak"
 
     volumes:
@@ -219,8 +150,6 @@ services:
 
     ports:
       - "8180:8080"
-      # Port 9000 (management) NOT exposed to host — accessed internally only.
-      # Expose it if you need to query /health or /metrics from the host machine.
 
     depends_on:
       postgres:
@@ -231,20 +160,8 @@ services:
     networks:
       - lms-network
 
-    healthcheck:
-      # Keycloak 26 moved health endpoints to the management port (9000).
-      # /health/ready returns HTTP 200 when KC is fully started.
-      # KC_HEALTH_ENABLED=true must be set for this endpoint to exist.
-      # The Keycloak 26.2 base image includes `curl`.
-      test: ["CMD-SHELL", "curl -f http://localhost:9000/health/ready || exit 1"]
-      interval: 30s
-      timeout: 10s
-      retries: 10
-      start_period: 120s
-
   # ============================================================
   # PROMETHEUS — Metrics scraper
-  # UI: http://localhost:9090
   # ============================================================
   prometheus:
     image: prom/prometheus:v2.55.1
@@ -267,7 +184,6 @@ services:
 
   # ============================================================
   # GRAFANA — Dashboards
-  # UI: http://localhost:3001  (admin / admin)
   # ============================================================
   grafana:
     image: grafana/grafana:11.3.1
@@ -286,9 +202,9 @@ services:
       - prometheus
     networks:
       - lms-network
+
   # ============================================================
-  # MINIO — S3-Compatible Object Storage (Local Development)
-  # API: http://localhost:9000 | Console: http://localhost:9001
+  # MINIO — S3-Compatible Object Storage
   # ============================================================
   minio:
     image: minio/minio:latest
@@ -312,7 +228,6 @@ services:
       retries: 5
       start_period: 10s
 
-  # Service phụ trợ: Tự động tạo bucket 'lms-certificates' khi MinIO khởi động xong
   minio-createbucket:
     image: minio/mc:latest
     container_name: lms-minio-setup
@@ -328,6 +243,136 @@ services:
       /usr/bin/mc anonymous set download myminio/lms-certificates;
       exit 0;
       "
+
+  # ============================================================
+  # JAVA MICROSERVICES (PHASE G4)
+  # ============================================================
+
+  course-service:
+    build:
+      context: .
+      dockerfile: course-service/Dockerfile
+    container_name: lms-course-service
+    restart: unless-stopped
+    # KHÔNG expose port ra host, chỉ chạy nội bộ
+    environment:
+      - DB_URL=jdbc:postgresql://postgres:5432/course_db
+      - KAFKA_BOOTSTRAP_SERVERS=kafka:29092
+      # JWK lấy từ internal DNS
+      - KEYCLOAK_JWK_SET_URI=http://keycloak:8080/realms/lms-realm/protocol/openid-connect/certs
+      # Issuer URI BẮT BUỘC giữ localhost:8180 để khớp với token Frontend gửi lên
+      - KEYCLOAK_ISSUER_URI=http://localhost:8180/realms/lms-realm
+      - OTLP_TRACING_ENDPOINT=http://jaeger:4318/v1/traces
+      - OTLP_ENDPOINT=http://jaeger:4318
+    depends_on:
+      postgres:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+      keycloak:
+        condition: service_started
+    networks:
+      - lms-network
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:8081/actuator/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+
+  user-service:
+    build:
+      context: .
+      dockerfile: user-service/Dockerfile
+    container_name: lms-user-service
+    restart: unless-stopped
+    environment:
+      - DB_URL=jdbc:postgresql://postgres:5432/user_db
+      - KEYCLOAK_JWK_SET_URI=http://keycloak:8080/realms/lms-realm/protocol/openid-connect/certs
+      - KEYCLOAK_ISSUER_URI=http://localhost:8180/realms/lms-realm
+      - OTLP_TRACING_ENDPOINT=http://jaeger:4318/v1/traces
+      - OTLP_ENDPOINT=http://jaeger:4318
+    depends_on:
+      postgres:
+        condition: service_healthy
+      keycloak:
+        condition: service_started
+    networks:
+      - lms-network
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:8083/actuator/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+
+  enrollment-service:
+    build:
+      context: .
+      dockerfile: enrollment-service/Dockerfile
+    container_name: lms-enrollment-service
+    restart: unless-stopped
+    environment:
+      - DB_URL=jdbc:postgresql://postgres:5432/enrollment_db
+      - KAFKA_BOOTSTRAP_SERVERS=kafka:29092
+      - KEYCLOAK_JWK_SET_URI=http://keycloak:8080/realms/lms-realm/protocol/openid-connect/certs
+      - KEYCLOAK_ISSUER_URI=http://localhost:8180/realms/lms-realm
+      - COURSE_SERVICE_URL=http://course-service:8081
+      - USER_SERVICE_URL=http://user-service:8083
+      - S3_ENDPOINT=http://minio:9000
+      - OTLP_TRACING_ENDPOINT=http://jaeger:4318/v1/traces
+      - OTLP_ENDPOINT=http://jaeger:4318
+    depends_on:
+      postgres:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+      keycloak:
+        condition: service_started
+      course-service:
+        condition: service_healthy
+      user-service:
+        condition: service_healthy
+    networks:
+      - lms-network
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:8082/actuator/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+
+  api-gateway:
+    build:
+      context: .
+      dockerfile: api-gateway/Dockerfile
+    container_name: lms-api-gateway
+    restart: unless-stopped
+    # CHỈ Expose port 8080 của Gateway ra Host để Frontend kết nối
+    ports:
+      - "8080:8080"
+    environment:
+      - COURSE_SERVICE_URL=http://course-service:8081
+      - ENROLLMENT_SERVICE_URL=http://enrollment-service:8082
+      - USER_SERVICE_URL=http://user-service:8083
+    depends_on:
+      course-service:
+        condition: service_healthy
+      enrollment-service:
+        condition: service_healthy
+      user-service:
+        condition: service_healthy
+    networks:
+      - lms-network
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:8080/actuator/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+
 # ============================================================
 # VOLUMES
 # ============================================================
@@ -342,6 +387,7 @@ volumes:
     driver: local
   lms_minio_data:
     driver: local
+
 # ============================================================
 # NETWORKS
 # ============================================================

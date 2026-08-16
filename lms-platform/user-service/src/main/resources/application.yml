@@ -7,7 +7,7 @@ spring:
 
   # ── Database: user_db (isolated per service) ─────────────
   datasource:
-    url: jdbc:postgresql://localhost:5433/user_db
+    url: ${DB_URL:jdbc:postgresql://localhost:5433/user_db}
     username: postgres
     password: postgres
     driver-class-name: org.postgresql.Driver
@@ -36,8 +36,8 @@ spring:
     oauth2:
       resourceserver:
         jwt:
-          jwk-set-uri: http://localhost:8180/realms/lms-realm/protocol/openid-connect/certs
-          issuer-uri: http://localhost:8180/realms/lms-realm
+          jwk-set-uri: ${KEYCLOAK_JWK_SET_URI:http://localhost:8180/realms/lms-realm/protocol/openid-connect/certs}
+          issuer-uri: ${KEYCLOAK_ISSUER_URI:http://localhost:8180/realms/lms-realm}
 
 # ── Observability ─────────────────────────────────────────────────
 management:
@@ -56,7 +56,7 @@ management:
 
   otlp:
     tracing:
-      endpoint: http://localhost:4318/v1/traces
+      endpoint: ${OTLP_TRACING_ENDPOINT:http://localhost:4318/v1/traces}
       timeout: 5s
     metrics:
       export:
@@ -69,7 +69,7 @@ otel:
 
   exporter:
     otlp:
-      endpoint: http://localhost:4318
+      endpoint: ${OTLP_ENDPOINT:http://localhost:4318}
       protocol: http/protobuf
 
   propagators: tracecontext,baggage
