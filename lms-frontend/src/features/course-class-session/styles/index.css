@@ -1,0 +1,19 @@
+.event-scheduled {
+  background-color: #1677ff !important;
+  border-color: #1677ff !important;
+}
+
+.event-done {
+  background-color: #52c41a !important;
+  border-color: #52c41a !important;
+}
+
+.event-cancelled {
+  background-color: #ff4d4f !important;
+  border-color: #ff4d4f !important;
+}
+
+.event-rescheduled {
+  background-color: #fa8c16 !important;
+  border-color: #fa8c16 !important;
+}

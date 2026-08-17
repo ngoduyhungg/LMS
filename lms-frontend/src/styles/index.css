@@ -1,0 +1,15 @@
+@import 'tailwindcss';
+
+.upload-banner .ant-upload {
+  width: 100% !important;
+}
+
+.upload-banner .ant-upload-select {
+  width: 100% !important;
+  height: 220px !important;
+  margin: 0 !important;
+}
+
+.upload-banner .ant-upload-list {
+  width: 100%;
+}
