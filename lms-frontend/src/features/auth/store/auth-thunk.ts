@@ -5,6 +5,15 @@ import { userRoleUserApi } from '@/features/users/api/user-api';
 import { extractUserFromToken } from '../utils/jwt';
 import { logout } from './auth-slice';
 
+const getErrorMessage = (error: unknown): string => {
+  if (error instanceof Error) return error.message;
+  if (typeof error === 'object' && error !== null && 'response' in error) {
+    const res = (error as any).response;
+    if (res?.data?.error_description) return String(res.data.error_description);
+  }
+  return 'Đăng nhập thất bại';
+};
+
 export const loginThunk = createAsyncThunk(
   'auth/login',
   async (payload: LoginPayload, thunkAPI) => {
@@ -12,7 +21,7 @@ export const loginThunk = createAsyncThunk(
       const tokenData = await loginApi(payload);
       const user = extractUserFromToken(tokenData.access_token);
       
-      if (!user) throw new Error('Cấu trúc token không hợp lệ hoặc không có quyền truy cập');
+      if (!user) throw new Error('Cấu trúc token không hợp lệ hoặc không có quyền truy cập LMS');
 
       localStorage.setItem('accessToken', tokenData.access_token);
       localStorage.setItem('refreshToken', tokenData.refresh_token);
@@ -20,8 +29,10 @@ export const loginThunk = createAsyncThunk(
       await userRoleUserApi.sync();
 
       return { user, accessToken: tokenData.access_token, refreshToken: tokenData.refresh_token };
-    } catch (error: any) {
-      return thunkAPI.rejectWithValue(error.response?.data?.error_description || 'Đăng nhập thất bại');
+    } catch (error: unknown) {
+      localStorage.removeItem('accessToken');
+      localStorage.removeItem('refreshToken');
+      return thunkAPI.rejectWithValue(getErrorMessage(error));
     }
   }
 );
@@ -42,10 +53,10 @@ export const initializeAuthThunk = createAsyncThunk(
     try {
       await userRoleUserApi.sync();
       return user;
-    } catch (error: any) {
+    } catch {
       localStorage.removeItem('accessToken');
       localStorage.removeItem('refreshToken');
-      return thunkAPI.rejectWithValue('Không thể đồng bộ hồ sơ người dùng');
+      return thunkAPI.rejectWithValue('Không thể đồng bộ hồ sơ người dùng qua API Gateway');
     }
   }
 );

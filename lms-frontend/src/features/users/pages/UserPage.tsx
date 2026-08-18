@@ -25,7 +25,7 @@ import { userFilters } from '../constants/user-filter-table';
 import { formatDate } from '@/shared/utils/date';
 import { FORMAT_DATE_TIME } from '@/shared/constants/format-date';
 import { useAppDispatch, useAppSelector } from '@/app/redux/hooks';
-import { getMeThunk } from '@/features/auth/store/auth-thunk';
+import { initializeAuthThunk } from '@/features/auth/store/auth-thunk';
 
 const UserPage = () => {
   const { getAll, update, active, inActive, remove } = userRoleAdminApi;
@@ -223,7 +223,7 @@ const UserPage = () => {
         onSuccess={() => {
           refetch();
           if (mode === FormModalMode.EDIT && selectedRecord?.id === user?.id) {
-            dispatch(getMeThunk());
+            dispatch(initializeAuthThunk());
           }
         }}
         onSubmit={

@@ -12,7 +12,7 @@ const RoleInfoTab = () => {
       if (!user.student) return null;
       return <StudentInfoForm student={user.student} />;
 
-    case USER_ROLE.TEACHER:
+    case USER_ROLE.INSTRUCTOR:
       if (!user.teacher) return null;
       return <TeacherInfoForm teacher={user.teacher} />;
 

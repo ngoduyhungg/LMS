@@ -20,7 +20,7 @@ const UserProfilePage = () => {
             label: 'Thông tin chung',
             children: <GeneralInfoTab />,
           },
-          ...(user?.role === USER_ROLE.STUDENT || user?.role === USER_ROLE.TEACHER
+          ...(user?.role === USER_ROLE.STUDENT || user?.role === USER_ROLE.INSTRUCTOR
             ? [
                 {
                   key: 'role',

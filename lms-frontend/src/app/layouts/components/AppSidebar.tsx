@@ -1,18 +1,10 @@
-import { Image, Layout, Menu, type MenuProps } from 'antd';
+import React from 'react';
+import { Layout, Menu, type MenuProps } from 'antd';
 import { useNavigate, useLocation } from 'react-router-dom';
 import {
-  DashboardOutlined,
-  TeamOutlined,
-  SolutionOutlined,
-  UserOutlined,
-  BookOutlined,
-  AuditOutlined,
-  ReadOutlined,
-  WalletOutlined,
-  ScheduleOutlined,
-  CalendarOutlined,
+  DashboardOutlined, BookOutlined, ReadOutlined, TeamOutlined,
+  SafetyCertificateOutlined, UserOutlined, AppstoreOutlined,
 } from '@ant-design/icons';
-import YoeduLogo from '@/assets/images/yoedu-logo.svg';
 import { useTheme } from '@/app/providers/theme/hooks/useTheme';
 import { USER_ROLE, type UserRole } from '@/features/users/types/user-role-type';
 import { useAppSelector } from '@/app/redux/hooks';
@@ -26,159 +18,66 @@ type MenuItem = Required<MenuProps>['items'][number] & {
 
 interface AppSidebarProps {
   collapsed: boolean;
+  isMobile?: boolean;
+  onClose?: () => void;
 }
 
-const AppSidebar: React.FC<AppSidebarProps> = ({ collapsed }) => {
+const AppSidebar: React.FC<AppSidebarProps> = ({ collapsed, isMobile, onClose }) => {
   const { user } = useAppSelector((state) => state.auth);
   const { theme } = useTheme();
-
   const navigate = useNavigate();
   const location = useLocation();
 
   const menuItems: MenuItem[] = [
-    {
-      key: '/',
-      icon: <DashboardOutlined />,
-      label: 'Dashboard',
-    },
-    {
-      key: 'user-management',
-      label: 'Quản lý người dùng',
-      icon: <TeamOutlined />,
-      roles: [USER_ROLE.ADMIN, USER_ROLE.STAFF], // Chỉ admin và manager mới thấy menu này
-      children: [
-        {
-          key: '/accounts',
-          icon: <AuditOutlined />,
-          label: 'Tài khoản',
-        },
-        {
-          key: '/students',
-          icon: <UserOutlined />,
-          label: 'Học viên',
-        },
-        {
-          key: '/parents',
-          icon: <TeamOutlined />,
-          label: 'Phụ huynh',
-        },
-        {
-          key: '/teachers',
-          icon: <SolutionOutlined />,
-          label: 'Giáo viên',
-        },
-      ],
-    },
-    {
-      key: 'academic-management',
-      label: 'Quản lý đào tạo',
-      icon: <BookOutlined />,
-      children: [
-        {
-          key: '/rooms',
-          icon: <SolutionOutlined />,
-          label: 'Phòng học',
-          roles: [USER_ROLE.ADMIN, USER_ROLE.STAFF],
-        },
-        {
-          key: '/schedules',
-          icon: <ScheduleOutlined />,
-          label: 'Ca học',
-          roles: [USER_ROLE.ADMIN, USER_ROLE.STAFF],
-        },
-        {
-          key: '/courses',
-          icon: <ReadOutlined />,
-          label: 'Khóa đào tạo',
-          roles: [USER_ROLE.ADMIN, USER_ROLE.STAFF],
-        },
-        {
-          key: '/course-classes',
-          icon: <ReadOutlined />,
-          label: 'Lớp học',
-        },
-        {
-          key: '/enrollments',
-          icon: <SolutionOutlined />,
-          label: 'Tuyển sinh',
-        },
-        {
-          key: '/course-class-sessions',
-          icon: <CalendarOutlined />,
-          label: 'Lịch học',
-        },
-        {
-          key: '/calendar',
-          icon: <CalendarOutlined />,
-          label: 'Calendars',
-        },
-        {
-          key: '/leave-requests',
-          icon: <AuditOutlined />,
-          label: 'Đơn xin nghỉ',
-        },
-      ],
-    },
-    {
-      key: 'finance',
-      label: 'Quản lý học phí',
-      icon: <WalletOutlined />,
-      roles: [USER_ROLE.ADMIN, USER_ROLE.STAFF], // Chỉ admin và manager mới thấy menu này
-      children: [
-        {
-          key: '/promotions',
-          icon: <WalletOutlined />,
-          label: 'Chương trình khuyến mãi',
-        },
-        {
-          key: '/tuition-invoices',
-          icon: <WalletOutlined />,
-          label: 'Hóa đơn học phí',
-        },
-        {
-          key: '/payments',
-          icon: <WalletOutlined />,
-          label: 'Thanh toán',
-        },
-      ],
-    },
+    { key: '/', icon: <DashboardOutlined />, label: 'Dashboard' },
+    { key: '/courses', icon: <AppstoreOutlined />, label: 'Khóa học', roles: [USER_ROLE.ADMIN] },
+    { key: '/categories', icon: <ReadOutlined />, label: 'Danh mục', roles: [USER_ROLE.ADMIN] },
+    { key: '/my-courses', icon: <BookOutlined />, label: 'Khóa học của tôi', roles: [USER_ROLE.STUDENT, USER_ROLE.INSTRUCTOR] },
+    { key: '/course-management', icon: <ReadOutlined />, label: 'Quản lý khóa học', roles: [USER_ROLE.INSTRUCTOR] },
+    { key: '/enrollments', icon: <TeamOutlined />, label: 'Ghi danh', roles: [USER_ROLE.ADMIN] },
+    { key: '/users', icon: <UserOutlined />, label: 'Người dùng', roles: [USER_ROLE.ADMIN] },
+    { key: '/certificates', icon: <SafetyCertificateOutlined />, label: 'Chứng chỉ' },
   ];
 
   const filterMenuByRole = (items: MenuItem[], role?: UserRole): MenuItem[] => {
-    return (
-      items
-        // Nếu item không có trường roles hoặc trường roles có chứa role của user thì giữ lại
-        .filter((item) => !item.roles || item.roles.includes(role!))
-        // Với các item có children, tiếp tục lọc children theo cùng logic
-        .map((item) => ({
-          ...item,
-          children: item.children ? filterMenuByRole(item.children, role) : undefined,
-        }))
-        // Sau khi lọc, loại bỏ các item có children nhưng không còn children nào sau khi lọc
-        .filter((item) => {
-          const isLeaf = !item.children;
-          const hasChildren = item.children?.length;
-
-          return isLeaf || hasChildren;
-        }) as MenuItem[]
-    );
+    return items
+      .filter((item) => !item.roles || (role && item.roles.includes(role)))
+      .map((item) => ({
+        ...item,
+        children: item.children ? filterMenuByRole(item.children, role) : undefined,
+      }))
+      .filter((item) => !item.children || item.children.length > 0) as MenuItem[];
   };
 
-  return (
-    <Sider width={240} collapsed={collapsed}>
-      <div
-        className={`h-16 flex items-center justify-center border-b ${theme === 'dark' ? 'border-gray-700' : 'border-gray-200'}`}
-      >
-        <Image src={YoeduLogo} preview={false} width={collapsed ? 48 : 64} />
+  const siderContent = (
+    <>
+      <div className={`h-16 flex items-center justify-center border-b ${theme === 'dark' ? 'border-gray-800' : 'border-gray-100'}`}>
+        <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-blue-600 text-lg font-black text-white shadow-md">
+          LMS
+        </div>
+        {!collapsed && <span className="ml-3 font-bold text-lg tracking-wide text-blue-600">Platform</span>}
       </div>
-
       <Menu
         theme={theme}
         mode="inline"
         items={filterMenuByRole(menuItems, user?.role)}
         selectedKeys={[location.pathname]}
-        onClick={({ key }) => navigate(key)}
+        onClick={({ key }) => {
+          navigate(key);
+          if (isMobile && onClose) onClose();
+        }}
+        className="mt-4 border-r-0"
       />
+    </>
+  );
+
+  if (isMobile) {
+    return <div className={`h-full w-full ${theme === 'dark' ? 'bg-[#141414]' : 'bg-white'}`}>{siderContent}</div>;
+  }
+
+  return (
+    <Sider width={260} collapsed={collapsed} theme={theme} className="shadow-md z-10 hidden md:block">
+      {siderContent}
     </Sider>
   );
 };

@@ -3,7 +3,7 @@ import { useEffect } from 'react';
 import { Button, Form } from 'antd';
 import CardCustom from '@/shared/components/card/CardCustom';
 import { useAppDispatch } from '@/app/redux/hooks';
-import { getMeThunk } from '@/features/auth/store/auth-thunk';
+import { initializeAuthThunk } from '@/features/auth/store/auth-thunk';
 import { useNotification } from '@/shared/hooks/useNotification';
 import type { Student } from '@/features/students/types/student-type';
 import { studentRoleStudentApi } from '@/features/students/api/student-api';
@@ -33,7 +33,7 @@ const StudentInfoForm = ({ student }: Props) => {
         return;
       }
 
-      dispatch(getMeThunk());
+      dispatch(initializeAuthThunk());
 
       showNotification(
         'success',

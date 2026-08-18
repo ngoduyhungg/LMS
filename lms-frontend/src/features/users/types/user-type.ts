@@ -10,7 +10,7 @@ export type User = {
 
   email: string;
 
-  password: string;
+  password?: string;
 
   fullName?: string | null;
 
@@ -30,11 +30,11 @@ export type User = {
 
   roles?: UserRole[];
 
-  status: UserStatusType;
+  status?: UserStatusType;
 
-  createdAt: string;
+  createdAt?: string;
 
-  updatedAt: string;
+  updatedAt?: string;
 
   student?: Student | null;
 

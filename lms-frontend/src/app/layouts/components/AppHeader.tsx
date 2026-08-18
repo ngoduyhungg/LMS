@@ -1,110 +1,64 @@
-import { Layout, Dropdown, Badge, Switch } from 'antd';
-import {
-  MenuUnfoldOutlined,
-  MenuFoldOutlined,
-  BellOutlined,
-  LogoutOutlined,
-  SettingOutlined,
-  ProfileOutlined,
-  SunOutlined,
-  MoonOutlined,
-} from '@ant-design/icons';
-import { useAppSelector, useAppDispatch } from '@/app/redux/hooks';
+import React from 'react';
+import { Layout, Dropdown, Avatar, Button, Badge } from 'antd';
+import { MenuUnfoldOutlined, MenuFoldOutlined, UserOutlined, LogoutOutlined, BellOutlined } from '@ant-design/icons';
+import { useAppDispatch, useAppSelector } from '@/app/redux/hooks';
 import { logoutThunk } from '@/features/auth/store/auth-thunk';
 import { useTheme } from '@/app/providers/theme/hooks/useTheme';
-import { useNavigate } from 'react-router-dom';
-import UserAvatar from '@/shared/components/avatar/UserAvatar';
-import { useState } from 'react';
-import { useUnreadCount } from '@/features/notification/hooks/useUnreadCount';
-import NotificationDrawer from '@/features/notification/components/NotificationDrawer';
 
 const { Header } = Layout;
 
 interface AppHeaderProps {
   collapsed: boolean;
-  setCollapsed: (value: boolean) => void;
+  setCollapsed: (collapsed: boolean) => void;
+  isMobile?: boolean;
+  drawerVisible?: boolean;
+  setDrawerVisible?: (visible: boolean) => void;
 }
 
-const AppHeader: React.FC<AppHeaderProps> = ({ collapsed, setCollapsed }) => {
-  const { theme, toggleTheme } = useTheme();
-  const { user } = useAppSelector((state) => state.auth);
+const AppHeader: React.FC<AppHeaderProps> = ({ 
+  collapsed, setCollapsed, isMobile, drawerVisible, setDrawerVisible 
+}) => {
   const dispatch = useAppDispatch();
-  const navigate = useNavigate();
+  const { user } = useAppSelector((state) => state.auth);
+  const { theme } = useTheme();
 
-  const { data: unread } = useUnreadCount(user?.id);
+  const handleMenuToggle = () => {
+    if (isMobile && setDrawerVisible) {
+      setDrawerVisible(!drawerVisible);
+    } else {
+      setCollapsed(!collapsed);
+    }
+  };
 
-  const [openNotification, setOpenNotification] = useState(false);
-
-  const menuItems = [
-    {
-      key: 'profile',
-      icon: <ProfileOutlined />,
-      label: 'Thông tin cá nhân',
-      onClick: () => navigate('/profile'),
-    },
-    {
-      key: 'settings',
-      icon: <SettingOutlined />,
-      label: 'Cài đặt',
-    },
-    {
-      type: 'divider' as const,
-    },
-    {
-      key: 'logout',
-      icon: <LogoutOutlined />,
-      label: 'Đăng xuất',
-      danger: true,
-      onClick: () => dispatch(logoutThunk()),
-    },
-  ];
+  const userMenu = {
+    items: [
+      { key: 'profile', icon: <UserOutlined />, label: 'Hồ sơ cá nhân' },
+      { type: 'divider' as const },
+      { key: 'logout', icon: <LogoutOutlined />, label: 'Đăng xuất', onClick: () => dispatch(logoutThunk()), danger: true },
+    ],
+  };
 
   return (
-    <Header
-      className={`flex justify-between items-center px-4 border-b ${theme === 'dark' ? 'border-gray-700' : 'border-gray-200'}`}
-    >
-      {/* LEFT */}
-      <div className="text-xl cursor-pointer" onClick={() => setCollapsed(!collapsed)}>
-        {collapsed ? <MenuUnfoldOutlined /> : <MenuFoldOutlined />}
-      </div>
-
-      {/* RIGHT */}
-      <div className="flex items-center gap-6">
-        {/* Notification */}
-        <Badge count={unread || 0} size="small">
-          <BellOutlined
-            className="text-lg cursor-pointer"
-            onClick={() => setOpenNotification(true)}
-          />
+    <Header className={`px-4 flex items-center justify-between shadow-sm z-10 ${theme === 'dark' ? 'bg-[#141414]' : 'bg-white'}`} style={{ height: 64, paddingInline: 16 }}>
+      <Button
+        type="text"
+        icon={isMobile ? <MenuUnfoldOutlined /> : (collapsed ? <MenuUnfoldOutlined /> : <MenuFoldOutlined />)}
+        onClick={handleMenuToggle}
+        className="text-lg w-10 h-10 flex items-center justify-center"
+      />
+      <div className="flex items-center gap-4 md:gap-6">
+        <Badge count={0} showZero={false} dot>
+          <Button type="text" icon={<BellOutlined className="text-xl text-gray-500" />} />
         </Badge>
-
-        {/* Theme switch */}
-        <Switch
-          checked={theme === 'dark'}
-          onChange={toggleTheme}
-          checkedChildren={<SunOutlined />}
-          unCheckedChildren={<MoonOutlined />}
-        />
-
-        {/* User dropdown */}
-        <Dropdown menu={{ items: menuItems }} placement="bottomRight">
-          <div className="flex items-center gap-2 cursor-pointer">
-            <UserAvatar size={46} />
-
-            <div className="flex flex-col leading-tight">
-              <span className="text-red-500 text-sm font-medium">
-                {user?.fullName || user?.email}
-              </span>
-              <span className="text-xs text-gray-400">{user?.role}</span>
+        <Dropdown menu={userMenu} placement="bottomRight" trigger={['click']}>
+          <div className="flex items-center cursor-pointer hover:bg-gray-50 p-1 md:p-1.5 rounded-lg transition-colors">
+            <Avatar icon={<UserOutlined />} className="bg-blue-600 flex-shrink-0" />
+            <div className="ml-3 hidden md:block text-sm">
+              <div className="font-semibold text-gray-800 leading-none">{user?.fullName || 'User'}</div>
+              <div className="text-xs text-gray-500 mt-1 capitalize">{user?.role?.toLowerCase() || 'N/A'}</div>
             </div>
           </div>
         </Dropdown>
-
-        <NotificationDrawer
-          open={openNotification}
-          onClose={() => setOpenNotification(false)}
-          userId={user?.id}
-        />
       </div>
     </Header>
   );

@@ -7,15 +7,15 @@ export const userRoleOptions = [
   },
   {
     label: 'Nhân viên',
-    value: USER_ROLE.STAFF,
+    value: USER_ROLE.INSTRUCTOR,
   },
   {
     label: 'Giáo viên',
-    value: USER_ROLE.TEACHER,
+    value: USER_ROLE.INSTRUCTOR,
   },
   {
     label: 'Phụ huynh',
-    value: USER_ROLE.PARENT,
+    value: USER_ROLE.STUDENT,
   },
   {
     label: 'Học viên',

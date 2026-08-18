@@ -1,11 +1,10 @@
 import { createSlice } from '@reduxjs/toolkit';
-
-import { getMeThunk, loginThunk, registerThunk } from './auth-thunk';
+import { initializeAuthThunk, loginThunk } from './auth-thunk';
 import type { User } from '@/features/users/types/user-type';
 
 type AuthState = {
   user: User | null;
-  initialized: boolean; // Dùng để đánh dấu đã kiểm tra token và lấy thông tin user hay chưa
+  initialized: boolean;
   loading: boolean;
   error: string | null;
 };
@@ -23,7 +22,6 @@ const authSlice = createSlice({
   reducers: {
     logout: (state) => {
       state.user = null;
-
       localStorage.removeItem('accessToken');
       localStorage.removeItem('refreshToken');
     },
@@ -37,55 +35,33 @@ const authSlice = createSlice({
 
   extraReducers: (builder) => {
     builder
+      // --- LOGIN THUNK ---
       .addCase(loginThunk.pending, (state) => {
         state.loading = true;
-
         state.error = null;
       })
       .addCase(loginThunk.fulfilled, (state, action) => {
         state.loading = false;
-
         state.user = action.payload.user;
-
-        localStorage.setItem('accessToken', action.payload.accessToken);
-        localStorage.setItem('refreshToken', action.payload.refreshToken);
       })
       .addCase(loginThunk.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload as string;
       })
 
-      .addCase(registerThunk.pending, (state) => {
+      .addCase(initializeAuthThunk.pending, (state) => {
         state.loading = true;
         state.error = null;
       })
-      .addCase(registerThunk.fulfilled, (state) => {
+      .addCase(initializeAuthThunk.fulfilled, (state, action) => {
         state.loading = false;
-      })
-      .addCase(registerThunk.rejected, (state, action) => {
-        state.loading = false;
-        state.error = action.payload as string;
-      })
-
-      .addCase(getMeThunk.pending, (state) => {
-        state.loading = true;
-
-        state.error = null;
-      })
-      .addCase(getMeThunk.fulfilled, (state, action) => {
-        state.loading = false;
-
-        state.user = action.payload;
-
+        state.user = action.payload as User;
         state.initialized = true;
       })
-      .addCase(getMeThunk.rejected, (state, action) => {
+      .addCase(initializeAuthThunk.rejected, (state, action) => {
         state.loading = false;
-
         state.user = null;
-
         state.initialized = true;
-
         state.error = action.payload as string;
       });
   },

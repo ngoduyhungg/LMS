@@ -4,7 +4,7 @@ import { Button, Form } from 'antd';
 import CardCustom from '@/shared/components/card/CardCustom';
 import { teacherFormFields } from '@/features/teachers/constants/teacher-form-fields';
 import { teacherRoleTeacherApi } from '@/features/teachers/api/teacher-api';
-import { getMeThunk } from '@/features/auth/store/auth-thunk';
+import { initializeAuthThunk } from '@/features/auth/store/auth-thunk';
 import { useNotification } from '@/shared/hooks/useNotification';
 import { useAppDispatch } from '@/app/redux/hooks';
 import type { Teacher } from '@/features/teachers/types/teacher-type';
@@ -33,7 +33,7 @@ const TeacherInfoForm = ({ teacher }: Props) => {
         return;
       }
 
-      dispatch(getMeThunk());
+      dispatch(initializeAuthThunk());
 
       showNotification(
         'success',

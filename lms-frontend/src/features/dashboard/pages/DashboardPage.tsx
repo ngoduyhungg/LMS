@@ -1,59 +1,250 @@
-import StatCard from '@/features/dashboard/components/StatCard';
-import { useEffect, useState } from 'react';
-import type { Dashboard } from '@/features/dashboard/types/dashboard-type';
-import RecentActivity from '@/features/dashboard/components/RecentActivity';
-import TodayClasses from '@/features/dashboard/components/TodayClasses';
-import { dashboardRoleAdminApi } from '../api/dashboard-api';
-import PageHeader from '@/shared/components/page/PageHeader';
-import DashboardSkeleton from '../components/DashboardSkeleton';
+import React from 'react';
+import { Typography, Row, Col, Card, Button, Empty } from 'antd';
+import { 
+  PlayCircleOutlined, SafetyCertificateOutlined, BookOutlined,
+  TeamOutlined, ReadOutlined, SolutionOutlined, BarChartOutlined,
+  EditOutlined, StarOutlined
+} from '@ant-design/icons';
+import { useAppSelector } from '@/app/redux/hooks';
+import { USER_ROLE } from '@/features/users/types/user-role-type';
 
-const mapColor = ['green', 'blue', 'purple', 'red'];
+const { Title, Text } = Typography;
 
-const DashboardPage = () => {
-  const { getDashboard } = dashboardRoleAdminApi;
-  const [data, setData] = useState<Dashboard | null>(null);
-  const [loading, setLoading] = useState(true);
+const DashboardPage: React.FC = () => {
+  const { user } = useAppSelector((state) => state.auth);
+  
+  const isAdmin = user?.role === USER_ROLE.ADMIN;
+  const isInstructor = user?.role === USER_ROLE.INSTRUCTOR;
+  const isStudent = user?.role === USER_ROLE.STUDENT || (!isAdmin && !isInstructor);
 
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const res = await getDashboard();
-        setData(res.data);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchData();
-  }, []);
-
-  if (loading) {
-    return <DashboardSkeleton />;
-  }
+  const getSubtitle = () => {
+    if (isAdmin) return 'Tổng quan tình hình hoạt động của hệ thống LMS.';
+    if (isInstructor) return 'Quản lý khóa học, lớp học và theo dõi tiến độ của học viên.';
+    return 'Tiếp tục hành trình học tập của bạn trên hệ thống LMS.';
+  };
 
   return (
-    <div className="flex flex-col gap-6">
-      {/* Title */}
-      <PageHeader title="Dashboard" subtitle="Tổng quan hệ thống quản lý YOEDU" />
-
-      {/* Stats */}
-      <div className="grid grid-cols-4 gap-4">
-        {data?.statData.map((item, index) => (
-          <StatCard
-            key={index}
-            title={item.title}
-            value={item.value}
-            extra={item.extra}
-            color={mapColor[index % mapColor.length]}
-          />
-        ))}
+    <div className="mx-auto max-w-7xl p-4 md:p-6 lg:p-8">
+      {/* Welcome Section */}
+      <div className="mb-6 md:mb-8">
+        <Title level={2} className="mb-2 text-2xl md:text-3xl font-bold text-gray-800 break-words">
+          Chào mừng trở lại, {user?.fullName || 'bạn'}!
+        </Title>
+        <Text className="text-sm md:text-base text-gray-500">
+          {getSubtitle()}
+        </Text>
       </div>
 
-      {/* Bottom */}
-      <div className="grid grid-cols-2 gap-4">
-        <RecentActivity data={data?.recentActivityData || []} />
-        <TodayClasses data={data?.todayClasses || []} />
-      </div>
+      {/* Quick Summary Cards */}
+      <Row gutter={[16, 16]} className="mb-6 md:mb-8">
+        {isAdmin && (
+          <>
+            <Col xs={24} sm={12} lg={8}>
+              <Card className="border-0 bg-gradient-to-br from-blue-50 to-blue-100/50 shadow-sm rounded-xl h-full">
+                <div className="flex items-center gap-4">
+                  <div className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-full bg-blue-600 text-xl text-white shadow-md">
+                    <TeamOutlined />
+                  </div>
+                  <div className="overflow-hidden">
+                    <Text className="font-medium text-gray-500 block truncate">Tổng người dùng</Text>
+                    <div className="text-2xl font-bold text-gray-800">--</div>
+                  </div>
+                </div>
+              </Card>
+            </Col>
+            <Col xs={24} sm={12} lg={8}>
+              <Card className="border-0 bg-gradient-to-br from-indigo-50 to-indigo-100/50 shadow-sm rounded-xl h-full">
+                <div className="flex items-center gap-4">
+                  <div className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-full bg-indigo-600 text-xl text-white shadow-md">
+                    <ReadOutlined />
+                  </div>
+                  <div className="overflow-hidden">
+                    <Text className="font-medium text-gray-500 block truncate">Khóa học hệ thống</Text>
+                    <div className="text-2xl font-bold text-gray-800">--</div>
+                  </div>
+                </div>
+              </Card>
+            </Col>
+            <Col xs={24} sm={12} lg={8}>
+              <Card className="border-0 bg-gradient-to-br from-teal-50 to-teal-100/50 shadow-sm rounded-xl h-full">
+                <div className="flex items-center gap-4">
+                  <div className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-full bg-teal-600 text-xl text-white shadow-md">
+                    <SolutionOutlined />
+                  </div>
+                  <div className="overflow-hidden">
+                    <Text className="font-medium text-gray-500 block truncate">Ghi danh mới</Text>
+                    <div className="text-2xl font-bold text-gray-800">--</div>
+                  </div>
+                </div>
+              </Card>
+            </Col>
+          </>
+        )}
+
+        {isInstructor && (
+          <>
+            <Col xs={24} sm={12} lg={8}>
+              <Card className="border-0 bg-gradient-to-br from-blue-50 to-blue-100/50 shadow-sm rounded-xl h-full">
+                <div className="flex items-center gap-4">
+                  <div className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-full bg-blue-600 text-xl text-white shadow-md">
+                    <BookOutlined />
+                  </div>
+                  <div className="overflow-hidden">
+                    <Text className="font-medium text-gray-500 block truncate">Đang giảng dạy</Text>
+                    <div className="text-2xl font-bold text-gray-800">--</div>
+                  </div>
+                </div>
+              </Card>
+            </Col>
+            <Col xs={24} sm={12} lg={8}>
+              <Card className="border-0 bg-gradient-to-br from-orange-50 to-orange-100/50 shadow-sm rounded-xl h-full">
+                <div className="flex items-center gap-4">
+                  <div className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-full bg-orange-500 text-xl text-white shadow-md">
+                    <TeamOutlined />
+                  </div>
+                  <div className="overflow-hidden">
+                    <Text className="font-medium text-gray-500 block truncate">Tổng học viên</Text>
+                    <div className="text-2xl font-bold text-gray-800">--</div>
+                  </div>
+                </div>
+              </Card>
+            </Col>
+            <Col xs={24} sm={12} lg={8}>
+              <Card className="border-0 bg-gradient-to-br from-yellow-50 to-yellow-100/50 shadow-sm rounded-xl h-full">
+                <div className="flex items-center gap-4">
+                  <div className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-full bg-yellow-500 text-xl text-white shadow-md">
+                    <StarOutlined />
+                  </div>
+                  <div className="overflow-hidden">
+                    <Text className="font-medium text-gray-500 block truncate">Đánh giá trung bình</Text>
+                    <div className="text-2xl font-bold text-gray-800">--</div>
+                  </div>
+                </div>
+              </Card>
+            </Col>
+          </>
+        )}
+
+        {isStudent && (
+          <>
+            <Col xs={24} sm={12} lg={8}>
+              <Card className="border-0 bg-gradient-to-br from-blue-50 to-blue-100/50 shadow-sm rounded-xl h-full">
+                <div className="flex items-center gap-4">
+                  <div className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-full bg-blue-600 text-xl text-white shadow-md">
+                    <BookOutlined />
+                  </div>
+                  <div className="overflow-hidden">
+                    <Text className="font-medium text-gray-500 block truncate">Khóa học của tôi</Text>
+                    <div className="text-2xl font-bold text-gray-800">--</div>
+                  </div>
+                </div>
+              </Card>
+            </Col>
+            <Col xs={24} sm={12} lg={8}>
+              <Card className="border-0 bg-gradient-to-br from-green-50 to-green-100/50 shadow-sm rounded-xl h-full">
+                <div className="flex items-center gap-4">
+                  <div className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-full bg-green-600 text-xl text-white shadow-md">
+                    <PlayCircleOutlined />
+                  </div>
+                  <div className="overflow-hidden">
+                    <Text className="font-medium text-gray-500 block truncate">Đang học</Text>
+                    <div className="text-2xl font-bold text-gray-800">--</div>
+                  </div>
+                </div>
+              </Card>
+            </Col>
+            <Col xs={24} sm={12} lg={8}>
+              <Card className="border-0 bg-gradient-to-br from-purple-50 to-purple-100/50 shadow-sm rounded-xl h-full">
+                <div className="flex items-center gap-4">
+                  <div className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-full bg-purple-600 text-xl text-white shadow-md">
+                    <SafetyCertificateOutlined />
+                  </div>
+                  <div className="overflow-hidden">
+                    <Text className="font-medium text-gray-500 block truncate">Chứng chỉ</Text>
+                    <div className="text-2xl font-bold text-gray-800">--</div>
+                  </div>
+                </div>
+              </Card>
+            </Col>
+          </>
+        )}
+      </Row>
+
+      {/* Main Content Sections */}
+      <Row gutter={[16, 16]}>
+        {isAdmin && (
+          <>
+            <Col xs={24} lg={16}>
+              <Card 
+                title={<span className="text-base md:text-lg font-bold">Hoạt động hệ thống gần đây</span>} 
+                className="h-full border-gray-100 shadow-sm rounded-xl"
+                bodyStyle={{ padding: '1rem md:padding-2rem' }}
+              >
+                <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description={<span className="text-gray-500">Chưa có dữ liệu hoạt động</span>} />
+              </Card>
+            </Col>
+            <Col xs={24} lg={8}>
+              <Card 
+                title={<span className="text-base md:text-lg font-bold">Phân tích ghi danh</span>} 
+                className="h-full border-gray-100 shadow-sm rounded-xl"
+                bodyStyle={{ padding: '1rem md:padding-2rem' }}
+              >
+                <Empty image={<BarChartOutlined className="text-3xl md:text-4xl text-gray-300" />} description={<span className="text-gray-500">Đang chờ dữ liệu phân tích</span>} />
+              </Card>
+            </Col>
+          </>
+        )}
+
+        {isInstructor && (
+          <>
+            <Col xs={24} lg={16}>
+              <Card 
+                title={<span className="text-base md:text-lg font-bold">Lớp học đang phụ trách</span>} 
+                className="h-full border-gray-100 shadow-sm rounded-xl"
+                bodyStyle={{ padding: '1rem md:padding-2rem' }}
+              >
+                <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description={<span className="text-gray-500">Bạn chưa được phân công lớp học nào</span>}>
+                  <Button type="primary" className="mt-2 bg-blue-600">Tạo khóa học mới</Button>
+                </Empty>
+              </Card>
+            </Col>
+            <Col xs={24} lg={8}>
+              <Card 
+                title={<span className="text-base md:text-lg font-bold">Cần xử lý</span>} 
+                className="h-full border-gray-100 shadow-sm rounded-xl"
+                bodyStyle={{ padding: '1rem md:padding-2rem' }}
+              >
+                <Empty image={<EditOutlined className="text-3xl md:text-4xl text-gray-300" />} description={<span className="text-gray-500">Không có bài tập cần chấm</span>} />
+              </Card>
+            </Col>
+          </>
+        )}
+
+        {isStudent && (
+          <>
+            <Col xs={24} lg={16}>
+              <Card 
+                title={<span className="text-base md:text-lg font-bold">Khóa học đang học</span>} 
+                className="h-full border-gray-100 shadow-sm rounded-xl"
+                bodyStyle={{ padding: '1rem md:padding-2rem' }}
+              >
+                <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description={<span className="text-gray-500">Bạn chưa ghi danh vào khóa học nào</span>}>
+                  <Button type="primary" className="mt-2 bg-blue-600">Khám phá khóa học</Button>
+                </Empty>
+              </Card>
+            </Col>
+            <Col xs={24} lg={8}>
+              <Card 
+                title={<span className="text-base md:text-lg font-bold">Chứng chỉ mới nhất</span>} 
+                className="h-full border-gray-100 shadow-sm rounded-xl"
+                bodyStyle={{ padding: '1rem md:padding-2rem' }}
+              >
+                <Empty image={<SafetyCertificateOutlined className="text-3xl md:text-4xl text-gray-300" />} description={<span className="text-gray-500">Chưa có chứng chỉ nào</span>} />
+              </Card>
+            </Col>
+          </>
+        )}
+      </Row>
     </div>
   );
 };

@@ -4,7 +4,7 @@ import { generalInfoFormFields } from '../constants/general-info-form-fields';
 import CardCustom from '@/shared/components/card/CardCustom';
 import type { User } from '../types/user-type';
 import { useEffect } from 'react';
-import { getMeThunk } from '@/features/auth/store/auth-thunk';
+import { initializeAuthThunk } from '@/features/auth/store/auth-thunk';
 import { useNotification } from '@/shared/hooks/useNotification';
 import { userRoleUserApi } from '../api/user-api';
 import { formatDateToPicker } from '@/shared/utils/date';
@@ -24,7 +24,7 @@ const GeneralInfoTab = () => {
     try {
       const res = await update(values);
 
-      dispatch(getMeThunk());
+      dispatch(initializeAuthThunk());
 
       showNotification(
         'success',
