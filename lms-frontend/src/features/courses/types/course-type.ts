@@ -28,3 +28,10 @@ export const CourseLevel = {
 } as const;
 
 export type CourseLevelType = (typeof CourseLevel)[keyof typeof CourseLevel];
+
+export interface Category {
+  id: string;
+  name: string;
+  slug: string;
+  description?: string;
+}

@@ -1,9 +1,7 @@
 import { createBrowserRouter } from 'react-router-dom';
 
 import AuthLayout from '../layouts/AuthLayout';
-
 import MainLayout from '@/app/layouts/MainLayout';
-
 import ProtectedRoute from './ProtectedRoute';
 
 import LoginPage from '@/features/auth/pages/LoginPage';
@@ -25,6 +23,7 @@ import LeaveRequestPage from '@/features/leave-request/pages/LeaveRequestPage';
 import TuitionInvoicePage from '@/features/tuition-invoice/pages/TuitionInvoicePage';
 import PromotionPage from '@/features/promotion/pages/PromotionPage';
 import PaymentPage from '@/features/payment/pages/PaymentPage';
+import CourseOverviewPage from '@/features/courses/pages/CourseOverviewPage';
 
 export const router = createBrowserRouter([
   /******************** AUTH *********************/
@@ -35,14 +34,8 @@ export const router = createBrowserRouter([
         path: '/auth',
         element: <AuthLayout />,
         children: [
-          {
-            path: 'login',
-            element: <LoginPage />,
-          },
-          {
-            path: 'register',
-            element: <RegisterPage />,
-          },
+          { path: 'login', element: <LoginPage /> },
+          { path: 'register', element: <RegisterPage /> },
         ],
       },
     ],
@@ -56,74 +49,34 @@ export const router = createBrowserRouter([
         path: '/',
         element: <MainLayout />,
         children: [
-          {
-            index: true,
-            element: <DashboardPage />,
-          },
-          {
-            path: 'profile',
-            element: <UserProfilePage />,
-          },
-          {
-            path: 'students',
-            element: <StudentPage />,
-          },
-          {
-            path: 'teachers',
-            element: <TeacherPage />,
-          },
-          {
-            path: 'parents',
-            element: <ParentPage />,
-          },
-          {
-            path: 'accounts',
-            element: <UserPage />,
-          },
-          {
-            path: 'courses',
-            element: <CoursePage />,
-          },
-          {
-            path: 'rooms',
-            element: <RoomPage />,
-          },
-          {
-            path: 'schedules',
-            element: <SchedulePage />,
-          },
-          {
-            path: 'course-classes',
-            element: <CourseClassPage />,
-          },
-          {
-            path: 'course-class-sessions',
-            element: <CourseClassSessionPage />,
-          },
-          {
-            path: 'calendar',
-            element: <CourseClassCalendarPage />,
-          },
-          {
-            path: 'enrollments',
-            element: <EnrollmentPage />,
-          },
-          {
-            path: 'leave-requests',
-            element: <LeaveRequestPage />,
-          },
-          {
-            path: 'tuition-invoices',
-            element: <TuitionInvoicePage />,
-          },
-          {
-            path: 'payments',
-            element: <PaymentPage />,
-          },
-          {
-            path: 'promotions',
-            element: <PromotionPage />,
-          },
+          { index: true, element: <DashboardPage /> },
+          { path: 'profile', element: <UserProfilePage /> },
+          { path: 'students', element: <StudentPage /> },
+          { path: 'teachers', element: <TeacherPage /> },
+          { path: 'parents', element: <ParentPage /> },
+          { path: 'accounts', element: <UserPage /> },
+          
+          /* --- KHU VỰC ĐỒNG BỘ ĐƯỜNG DẪN COURSE DOMAIN FOUNDATION --- */
+          { path: 'courses', element: <CoursePage /> },
+          { path: 'my-courses', element: <CoursePage /> },
+          { path: 'course-management', element: <CoursePage /> },
+          
+          { path: 'rooms', element: <RoomPage /> },
+          { path: 'schedules', element: <SchedulePage /> },
+          { path: 'course-classes', element: <CourseClassPage /> },
+          { path: 'course-class-sessions', element: <CourseClassSessionPage /> },
+          { path: 'calendar', element: <CourseClassCalendarPage /> },
+          { path: 'enrollments', element: <EnrollmentPage /> },
+          { path: 'leave-requests', element: <LeaveRequestPage /> },
+          { path: 'tuition-invoices', element: <TuitionInvoicePage /> },
+          { path: 'payments', element: <PaymentPage /> },
+          { path: 'promotions', element: <PromotionPage /> },
+          { path: 'courses', element: <CoursePage /> },
+          { path: 'courses/:id', element: <CourseOverviewPage /> },
+          { path: 'my-courses', element: <CoursePage /> },
+          { path: 'my-courses/:id', element: <CourseOverviewPage /> },
+          { path: 'course-management', element: <CoursePage /> },
+          { path: 'course-management/:id', element: <CourseOverviewPage /> },
         ],
       },
     ],
