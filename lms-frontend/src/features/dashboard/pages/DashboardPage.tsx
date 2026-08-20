@@ -184,7 +184,7 @@ const DashboardPage: React.FC = () => {
               <Card 
                 title={<span className="text-lg font-bold">Hoạt động hệ thống gần đây</span>} 
                 className="h-full border-gray-100 shadow-sm rounded-xl"
-                bodyStyle={{ padding: '2rem' }}
+                styles={{ body: { padding: '2rem' } }}
               >
                 <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description={<span className="text-gray-500">Chưa có dữ liệu hoạt động</span>} />
               </Card>
@@ -193,7 +193,7 @@ const DashboardPage: React.FC = () => {
               <Card 
                 title={<span className="text-lg font-bold">Phân tích ghi danh</span>} 
                 className="h-full border-gray-100 shadow-sm rounded-xl"
-                bodyStyle={{ padding: '2rem' }}
+                styles={{ body: { padding: '2rem' } }}
               >
                 <Empty image={<BarChartOutlined className="text-4xl text-gray-300" />} description={<span className="text-gray-500">Đang chờ dữ liệu phân tích</span>} />
               </Card>
@@ -208,7 +208,7 @@ const DashboardPage: React.FC = () => {
               <Card 
                 title={<span className="text-lg font-bold">Lớp học đang phụ trách</span>} 
                 className="h-full border-gray-100 shadow-sm rounded-xl"
-                bodyStyle={{ padding: '2rem' }}
+                styles={{ body: { padding: '2rem' } }}
               >
                 <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description={<span className="text-gray-500">Bạn chưa được phân công lớp học nào</span>}>
                   <Button type="primary" className="mt-2 bg-blue-600" onClick={() => navigate('/course-management')}>Quản lý khóa học</Button>
@@ -219,7 +219,7 @@ const DashboardPage: React.FC = () => {
               <Card 
                 title={<span className="text-lg font-bold">Cần xử lý</span>} 
                 className="h-full border-gray-100 shadow-sm rounded-xl"
-                bodyStyle={{ padding: '2rem' }}
+                styles={{ body: { padding: '2rem' } }}
               >
                 <Empty image={<EditOutlined className="text-4xl text-gray-300" />} description={<span className="text-gray-500">Không có bài tập cần chấm</span>} />
               </Card>
@@ -234,7 +234,7 @@ const DashboardPage: React.FC = () => {
               <Card 
                 title={<span className="text-lg font-bold">Khóa học đang học</span>} 
                 className="h-full border-gray-100 shadow-sm rounded-xl"
-                bodyStyle={{ padding: '2rem' }}
+                styles={{ body: { padding: '2rem' } }}
               >
                 <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description={<span className="text-gray-500">Bạn chưa ghi danh vào khóa học nào</span>}>
                   <Button type="primary" className="mt-2 bg-blue-600" onClick={() => navigate('/courses')}>Khám phá khóa học</Button>
@@ -245,7 +245,7 @@ const DashboardPage: React.FC = () => {
               <Card 
                 title={<span className="text-lg font-bold">Chứng chỉ mới nhất</span>} 
                 className="h-full border-gray-100 shadow-sm rounded-xl"
-                bodyStyle={{ padding: '2rem' }}
+                styles={{ body: { padding: '2rem' } }}
               >
                 <Empty image={<SafetyCertificateOutlined className="text-4xl text-gray-300" />} description={<span className="text-gray-500">Chưa có chứng chỉ nào</span>} />
               </Card>

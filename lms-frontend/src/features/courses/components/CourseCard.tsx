@@ -39,7 +39,7 @@ const CourseCard: React.FC<CourseCardProps> = ({ course, userRole, onActionClick
           onClick={handleDetail}
         >
           {course.thumbnailUrl ? (
-            <img src={course.thumbnailUrl} alt={course.name} className="h-full w-full object-cover transition-transform duration-300 hover:scale-105" />
+            <img src={course.thumbnailUrl} alt={course.title} className="h-full w-full object-cover transition-transform duration-300 hover:scale-105" />
           ) : (
             <div className="flex flex-col items-center text-gray-300">
               <BookOutlined className="mb-2 text-4xl" />
@@ -55,7 +55,7 @@ const CourseCard: React.FC<CourseCardProps> = ({ course, userRole, onActionClick
           {course.level}
         </Tag>
         {isAdminOrInstructor && (
-          <Tag color={course.status === CourseStatus.OPEN ? 'success' : 'default'} className="m-0 rounded-md border-0">
+          <Tag color={course.status === CourseStatus.PUBLISHED ? 'success' : 'default'} className="m-0 rounded-md border-0">
             {course.statusText || course.status}
           </Tag>
         )}
@@ -64,10 +64,10 @@ const CourseCard: React.FC<CourseCardProps> = ({ course, userRole, onActionClick
       <Title 
         level={5} 
         className="line-clamp-2 mb-1 min-h-[2.5rem] leading-snug cursor-pointer hover:text-blue-600 transition-colors" 
-        title={course.name}
+        title={course.title}
         onClick={handleDetail}
       >
-        {course.name}
+        {course.title}
       </Title>
 
       <Text className="mb-3 block text-xs text-gray-400">Mã: {course.courseCode}</Text>

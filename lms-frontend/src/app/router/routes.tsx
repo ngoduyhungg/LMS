@@ -24,6 +24,7 @@ import TuitionInvoicePage from '@/features/tuition-invoice/pages/TuitionInvoiceP
 import PromotionPage from '@/features/promotion/pages/PromotionPage';
 import PaymentPage from '@/features/payment/pages/PaymentPage';
 import CourseOverviewPage from '@/features/courses/pages/CourseOverviewPage';
+import CourseStudioPage from '@/features/courses/pages/CourseStudioPage';
 
 export const router = createBrowserRouter([
   /******************** AUTH *********************/
@@ -77,6 +78,7 @@ export const router = createBrowserRouter([
           { path: 'my-courses/:id', element: <CourseOverviewPage /> },
           { path: 'course-management', element: <CoursePage /> },
           { path: 'course-management/:id', element: <CourseOverviewPage /> },
+          { path: 'course-management/:id/edit', element: <CourseStudioPage /> },
         ],
       },
     ],
