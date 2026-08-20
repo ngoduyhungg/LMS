@@ -1,10 +1,14 @@
 package com.lms.courseservice.application.service;
 
+import com.lms.courseservice.application.port.in.GetCourseSummaryUseCase;
 import com.lms.courseservice.application.port.in.ManageCourseUseCase;
 import com.lms.courseservice.application.port.in.GetCourseUseCase;
+import com.lms.courseservice.application.port.in.ValidateLessonUseCase;
 import com.lms.courseservice.application.port.in.command.CourseCommand;
 import com.lms.courseservice.application.port.out.CategoryRepositoryPort;
+import com.lms.courseservice.application.port.out.CourseProjectionPort;
 import com.lms.courseservice.application.port.out.CourseRepositoryPort;
+import com.lms.courseservice.application.port.out.dto.CourseProjectionPayload;
 import com.lms.security.util.SecurityUtils;
 import com.lms.courseservice.domain.enums.CourseStatus;
 import com.lms.courseservice.domain.model.Category;
@@ -12,6 +16,7 @@ import com.lms.courseservice.domain.model.Course;
 import com.lms.shared.enums.ErrorCode;
 import com.lms.shared.exception.BusinessException;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -22,10 +27,12 @@ import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
-public class CourseApplicationService implements GetCourseUseCase, ManageCourseUseCase {
+@Slf4j
+public class CourseApplicationService implements GetCourseUseCase, ManageCourseUseCase, ValidateLessonUseCase, GetCourseSummaryUseCase {
 
     private final CourseRepositoryPort courseRepository;
     private final CategoryRepositoryPort categoryRepository;
+    private final CourseProjectionPort projectionPort;
 
     // =========================================================
     // SLUG GENERATION
@@ -130,13 +137,24 @@ public class CourseApplicationService implements GetCourseUseCase, ManageCourseU
             course.assignCategory(category);
         }
 
-        if(request.status() == CourseStatus.PUBLISHED){
+        boolean isNewlyPublished = false;
+        if (request.status() == CourseStatus.PUBLISHED && course.getStatus() != CourseStatus.PUBLISHED) {
             course.publish();
-        } else if(request.status() == CourseStatus.ARCHIVED){
+            isNewlyPublished = true;
+        } else if (request.status() == CourseStatus.ARCHIVED) {
             course.archive();
         }
 
-        return courseRepository.save(course);
+        Course savedCourse = courseRepository.save(course);
+
+        if (isNewlyPublished) {
+            long totalLessons = courseRepository.countLessonsByCourseId(savedCourse.getId());
+            projectionPort.publish(new CourseProjectionPayload(savedCourse.getId(), savedCourse.getInstructor(), totalLessons));
+            log.info("Publishing CourseProjection - courseId: {}, instructorId: {}, totalLessons: {}",
+                    savedCourse.getId(), savedCourse.getInstructor(), totalLessons);
+        }
+
+        return savedCourse;
     }
 
     @Override
@@ -147,5 +165,17 @@ public class CourseApplicationService implements GetCourseUseCase, ManageCourseU
                 .orElseThrow(() -> new BusinessException(ErrorCode.COURSE_NOT_FOUND, "Course not found with id: " + id));
         SecurityUtils.checkOwnership(course.getInstructor());
         courseRepository.deleteById(id);
+    }
+    @Override
+    @Transactional(readOnly = true)
+    public boolean validateLessonInCourse(Long courseId, Long lessonId) {
+        return courseRepository.existsLessonInCourse(lessonId, courseId);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Course getCourseSummary(Long courseId) {
+        return courseRepository.findById(courseId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.COURSE_NOT_FOUND, "Course not found with id: " + courseId));
     }
 }

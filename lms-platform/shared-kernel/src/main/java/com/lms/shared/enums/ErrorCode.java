@@ -147,6 +147,49 @@ public enum ErrorCode {
     ),
 
     // =========================================================
+// ENROLLMENT
+// =========================================================
+
+    ENROLLMENT_NOT_FOUND(
+            "ENROLLMENT_NOT_FOUND",
+            "Enrollment not found."
+    ),
+
+    ENROLLMENT_ALREADY_EXISTS(
+            "ENROLLMENT_ALREADY_EXISTS",
+            "User is already enrolled in this course."
+    ),
+
+    COURSE_REFERENCE_NOT_FOUND(
+            "COURSE_REFERENCE_NOT_FOUND",
+            "Course references have not been synchronized yet."
+    ),
+
+    ENROLLMENT_NOT_ACTIVE(
+            "ENROLLMENT_NOT_ACTIVE",
+            "Enrollment is not active."
+    ),
+
+    ENROLLMENT_ALREADY_COMPLETED(
+            "ENROLLMENT_ALREADY_COMPLETED",
+            "Enrollment has already been completed."
+    ),
+
+// =========================================================
+// CERTIFICATE
+// =========================================================
+
+    CERTIFICATE_NOT_FOUND(
+            "CERTIFICATE_NOT_FOUND",
+            "Certificate not found."
+    ),
+
+    CERTIFICATE_ALREADY_ISSUED(
+            "CERTIFICATE_ALREADY_ISSUED",
+            "Certificate has already been issued for this enrollment."
+    ),
+
+    // =========================================================
     // AUTH
     // =========================================================
 

@@ -40,6 +40,11 @@
             <!-- Uses NimbusJwtDecoder — validates against Keycloak JWK Set URI -->
         </dependency>
 
+        <!-- ========== KAFKA ========== -->
+        <dependency>
+            <groupId>org.springframework.kafka</groupId>
+            <artifactId>spring-kafka</artifactId>
+        </dependency>
         <!-- ========== DATABASE ========== -->
         <dependency>
             <groupId>org.postgresql</groupId>

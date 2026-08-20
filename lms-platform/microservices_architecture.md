@@ -198,7 +198,7 @@ lms-platform/                               ← Root project (Git root)
         │       ├── application.yml
         │       └── db/migration/
         │           ├── V1__init_course_schema.sql
-        │           └── V2__insert_course_seed_data.sql
+        │           └── V2__insert_enrollment_seed_data.sql
         └── test/
 ```
 

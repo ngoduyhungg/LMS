@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8" />
+    <title th:text="'Certificate - ' + ${model.studentName}">Certificate</title>
+    <style>
+        @page {
+            size: A4 landscape;
+            margin: 0;
+        }
+        * { box-sizing: border-box; }
+        html, body {
+            margin: 0; padding: 0; width: 100%; height: 100%;
+            font-family: Arial, Helvetica, sans-serif;
+            color: #263238; background: #ffffff;
+        }
+        body { padding: 20px; }
+
+        .certificate {
+            position: relative; width: 100%; height: 100%; min-height: 555px;
+            background: #ffffff; border: 3px solid #315da8; padding: 24px; overflow: hidden;
+        }
+        .certificate::before {
+            content: ""; position: absolute; top: 8px; left: 8px; right: 8px; bottom: 8px;
+            border: 1px solid #9db7df; pointer-events: none;
+        }
+        .certificate::after {
+            content: ""; position: absolute; width: 280px; height: 280px;
+            top: -170px; right: -80px; border-radius: 50%; background: #f4f7fc; pointer-events: none;
+        }
+
+        .background-shape {
+            position: absolute; width: 300px; height: 300px; border-radius: 50%;
+            background: #f7f9fc; left: -150px; bottom: -160px; z-index: 0;
+        }
+        .background-shape-2 {
+            position: absolute; width: 240px; height: 240px; border-radius: 50%;
+            background: #fafbfd; right: 130px; top: -130px; z-index: 0;
+        }
+
+        .content { position: relative; z-index: 10; width: 100%; height: 100%; text-align: center; }
+
+        .brand { margin-top: 8px; font-size: 27px; font-weight: bold; letter-spacing: 1px; color: #315da8; }
+        .brand-subtitle { margin-top: 5px; font-size: 11px; letter-spacing: 2px; text-transform: uppercase; color: #7b8794; }
+
+        .certificate-label { margin-top: 24px; font-size: 13px; letter-spacing: 4px; text-transform: uppercase; color: #607d8b; }
+        .title { margin-top: 6px; font-size: 39px; line-height: 1.15; font-weight: 400; color: #263238; letter-spacing: 1px; }
+
+        .intro { margin-top: 13px; font-size: 12px; color: #607d8b; }
+        .student { margin-top: 9px; font-size: 34px; font-weight: 600; color: #263238; letter-spacing: 0.5px; }
+        .student-line { width: 380px; height: 2px; margin: 9px auto 0; background: #315da8; }
+
+        .completion-text { margin-top: 15px; font-size: 12px; color: #607d8b; }
+        .course { margin-top: 7px; font-size: 24px; font-weight: 600; color: #d94a3a; }
+        .description { width: 68%; margin: 9px auto 0; font-size: 11px; line-height: 1.5; color: #607d8b; }
+
+        .information {
+            width: 82%; margin: 18px auto 0; border-top: 1px solid #d9e1ec;
+            border-bottom: 1px solid #d9e1ec; padding: 12px 0;
+        }
+        .info-table { width: 100%; border-collapse: collapse; table-layout: fixed; }
+        .info-cell { width: 25%; text-align: center; border-right: 1px solid #e2e8f0; padding: 0 10px; }
+        .info-cell:last-child { border-right: none; }
+        .info-label { font-size: 9px; text-transform: uppercase; letter-spacing: 1.3px; color: #90a4ae; }
+        .info-value { margin-top: 5px; font-size: 11px; font-weight: bold; color: #37474f; }
+
+        .bottom { width: 88%; margin: 17px auto 0; display: table; table-layout: fixed; }
+        .bottom-column { display: table-cell; width: 33.333%; vertical-align: middle; text-align: center; }
+
+        .signature-space { height: 38px; }
+        .signature { font-size: 23px; color: #263238; font-style: italic; }
+        .signature-line { width: 150px; margin: 3px auto 6px; border-bottom: 1px solid #607d8b; }
+        .signature-name { font-size: 10px; font-weight: bold; color: #37474f; }
+        .signature-role { margin-top: 3px; font-size: 8px; color: #90a4ae; }
+
+        .seal {
+            position: relative; width: 82px; height: 82px; margin: auto; border-radius: 50%;
+            background: #315da8; color: white; border: 5px solid #e8eef8; outline: 1px solid #315da8;
+        }
+        .seal-inner {
+            position: absolute; top: 10px; left: 10px; right: 10px; bottom: 10px;
+            border: 1px solid rgba(255,255,255,0.75); border-radius: 50%; text-align: center;
+        }
+        .seal-main { margin-top: 17px; font-size: 11px; font-weight: bold; letter-spacing: 1px; }
+        .seal-small { margin-top: 3px; font-size: 6px; letter-spacing: 0.7px; text-transform: uppercase; }
+
+        .verification-title { font-size: 9px; text-transform: uppercase; letter-spacing: 1px; color: #90a4ae; }
+        .verification-code { margin-top: 6px; font-size: 10px; font-weight: bold; color: #37474f; }
+        .verification-url { margin-top: 4px; font-size: 8px; color: #607d8b; }
+
+        .footer {
+            position: absolute; bottom: 9px; left: 0; right: 0; text-align: center;
+            font-size: 7px; color: #9aa7b2; letter-spacing: 0.4px;
+        }
+    </style>
+</head>
+<body>
+<div class="certificate">
+    <div class="background-shape"></div>
+    <div class="background-shape-2"></div>
+    <div class="content">
+        <div class="brand">LMS ACADEMY</div>
+        <div class="brand-subtitle">Learning Management Platform</div>
+
+        <div class="certificate-label">Certificate</div>
+        <div class="title">CERTIFICATE OF COMPLETION</div>
+
+        <div class="intro">This certificate is proudly presented to</div>
+        <div class="student" th:text="${model.studentName}">Student Name</div>
+        <div class="student-line"></div>
+
+        <div class="completion-text">for successfully completing the course</div>
+        <div class="course" th:text="${model.courseTitle}">Course Title</div>
+        <div class="description">
+            This certificate recognizes the successful completion
+            of all required learning activities and course requirements
+            provided by LMS Academy.
+        </div>
+
+        <div class="information">
+            <table class="info-table">
+                <tr>
+                    <td class="info-cell">
+                        <div class="info-label">Certificate ID</div>
+                        <div class="info-value" th:text="${model.certificateCode}">CERT-123456</div>
+                    </td>
+                    <td class="info-cell">
+                        <div class="info-label">Issue Date</div>
+                        <div class="info-value" th:text="${model.issueDate}">16 Aug 2026</div>
+                    </td>
+                    <td class="info-cell">
+                        <div class="info-label">Course Level</div>
+                        <div class="info-value">Professional</div>
+                    </td>
+                    <td class="info-cell">
+                        <div class="info-label">Learning Hours</div>
+                        <div class="info-value">40 Hours</div>
+                    </td>
+                </tr>
+            </table>
+        </div>
+
+        <div class="bottom">
+            <div class="bottom-column">
+                <div class="signature-space"><div class="signature">LMS Academy</div></div>
+                <div class="signature-line"></div>
+                <div class="signature-name">Course Instructor</div>
+                <div class="signature-role">Authorized Signature</div>
+            </div>
+            <div class="bottom-column">
+                <div class="seal">
+                    <div class="seal-inner">
+                        <div class="seal-main">LMS</div>
+                        <div class="seal-small">Certified</div>
+                    </div>
+                </div>
+            </div>
+            <div class="bottom-column">
+                <div class="verification-title">Verify Certificate</div>
+                <div class="verification-code" th:text="${model.certificateCode}">CERT-123456</div>
+                <div class="verification-url">verify.lms.com</div>
+            </div>
+        </div>
+    </div>
+    <div class="footer">
+        This certificate is digitally issued by LMS Academy.
+        The authenticity of this certificate can be verified using the Certificate ID above.
+    </div>
+</div>
+</body>
+</html>

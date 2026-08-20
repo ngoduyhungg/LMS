@@ -4,6 +4,9 @@ import com.lms.courseservice.adapter.out.persistence.entity.CourseJpaEntity;
 import com.lms.courseservice.adapter.out.persistence.mapper.CoursePersistenceMapper;
 import com.lms.courseservice.adapter.out.persistence.mapper.LessonPersistenceMapper;
 import com.lms.courseservice.adapter.out.persistence.mapper.ModulePersistenceMapper;
+import com.lms.courseservice.adapter.out.persistence.repository.CourseJpaRepository;
+import com.lms.courseservice.adapter.out.persistence.repository.LessonJpaRepository;
+import com.lms.courseservice.adapter.out.persistence.repository.ModuleJpaRepository;
 import com.lms.courseservice.application.port.out.CourseRepositoryPort;
 import com.lms.courseservice.domain.enums.CourseStatus;
 import com.lms.courseservice.domain.model.Course;
@@ -90,5 +93,13 @@ public class CoursePersistenceAdapter implements CourseRepositoryPort {
             lesson.getModule().setCourse(courseMapper.toDomain(entity.getModule().getCourse()));
             return lesson;
         });
+    }
+    @Override
+    public long countLessonsByCourseId(Long courseId) {
+        return lessonJpaRepository.countLessonsByCourseId(courseId);
+    }
+    @Override
+    public boolean existsLessonInCourse(Long lessonId, Long courseId) {
+        return lessonJpaRepository.existsByIdAndModuleCourseId(lessonId, courseId);
     }
 }

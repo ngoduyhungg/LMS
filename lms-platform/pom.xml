@@ -28,7 +28,9 @@
         <module>shared-kernel</module>
         <module>lms-security</module>
         <module>course-service</module>
-        <!-- <module>api-gateway</module> -->
+        <module>enrollment-service</module>
+        <module>user-service</module>
+        <module>api-gateway</module>
     </modules>
 
 
@@ -36,7 +38,7 @@
 
         <java.version>21</java.version>
 
-        <spring-cloud.version>2025.0.0</spring-cloud.version>
+        <spring-cloud.version>2025.1.2</spring-cloud.version>
 
         <mapstruct.version>1.6.3</mapstruct.version>
 
