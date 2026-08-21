@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { Tabs, Button, Card, Form, Input, Select, InputNumber, message, Spin, Typography, Space, Popconfirm, Modal, Tag, Row, Col, Empty } from 'antd';
 import { ArrowLeftOutlined, SaveOutlined, SendOutlined, PlusOutlined, DeleteOutlined, EditOutlined, HolderOutlined } from '@ant-design/icons';
 import { courseApi, getCategories } from '../api/course-api';
-import type { Course, Module, Lesson } from '../types/course-type';
+import type { Course, Module, Lesson, ApiError, Category } from '../types/course-type';
 
 const { Title, Text } = Typography;
 
@@ -32,18 +32,6 @@ const CourseStudioPage: React.FC = () => {
     const courseRes = await courseApi.getDetail(routeParam);
     const courseData = courseRes.data || courseRes;
     setCourse(courseData);
-    
-    const catId = courseData.category?.id || courseData.categoryId;
-    form.setFieldsValue({
-      title: courseData.title || undefined,
-      summary: courseData.summary || undefined,
-      description: courseData.description || undefined,
-      price: courseData.price || 0,
-      level: courseData.level ? String(courseData.level).toUpperCase() : undefined, 
-      categoryId: catId ? String(catId) : undefined, 
-      thumbnailUrl: courseData.thumbnailUrl || undefined
-    });
-
     return courseData.id; 
   };
 
@@ -51,16 +39,9 @@ const CourseStudioPage: React.FC = () => {
     setIsRefreshing(true);
     try {
       const currRes = await courseApi.getCurriculum(actualCourseId);
-      let modulesList: Module[] = [];
-      if (currRes.data && Array.isArray(currRes.data.modules)) {
-        modulesList = currRes.data.modules; 
-      } else if (currRes.data && Array.isArray(currRes.data)) {
-        modulesList = currRes.data;
-      } else if (Array.isArray(currRes)) {
-        modulesList = currRes;
-      }
-      setCurriculum(modulesList);
-    } catch (e) {
+      const modulesList = currRes.data?.modules || currRes.data || currRes || [];
+      setCurriculum(Array.isArray(modulesList) ? modulesList : []);
+    } catch (e: unknown) {
       setCurriculum([]);
     } finally {
       setIsRefreshing(false);
@@ -76,12 +57,13 @@ const CourseStudioPage: React.FC = () => {
           const catRes = await getCategories().catch(() => ({ data: [] }));
           const catData = catRes.data || catRes.items || catRes;
           if (Array.isArray(catData)) {
-            setCategories(catData.map((c: any) => ({ label: c.name, value: String(c.id) }))); 
+            setCategories(catData.map((c: Category) => ({ label: c.name, value: String(c.id) }))); 
           }
           await reloadCurriculum(actualId); 
         }
-      } catch (error: any) {
-        messageApi.error('Lỗi tải dữ liệu Course Studio');
+      } catch (error: unknown) {
+        const apiError = error as ApiError;
+        messageApi.error(apiError.response?.data?.message || 'Lỗi tải dữ liệu Course Studio');
         navigate('/course-management');
       } finally {
         setInitialLoading(false);
@@ -91,11 +73,26 @@ const CourseStudioPage: React.FC = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [routeParam]);
 
+  useEffect(() => {
+    if (course && !initialLoading) {
+      const catId = course.category?.id || course.categoryId;
+      form.setFieldsValue({
+        title: course.title,
+        summary: course.summary,
+        description: course.description,
+        price: course.price || 0,
+        level: course.level ? String(course.level).toUpperCase() : undefined, 
+        categoryId: catId ? String(catId) : undefined, 
+        thumbnailUrl: course.thumbnailUrl
+      });
+    }
+  }, [course, initialLoading, form]);
+
   const handleSaveInfo = async () => {
     let values;
     try {
       values = await form.validateFields(); 
-    } catch (e) {
+    } catch (e: unknown) {
       return; 
     }
 
@@ -113,10 +110,13 @@ const CourseStudioPage: React.FC = () => {
       };
       
       await courseApi.update(course!.id, payload);
+      messageApi.destroy();
       messageApi.success('Đã lưu thông tin khóa học');
       await loadCourseInfo(); 
-    } catch (error: any) {
-      messageApi.error(error.response?.data?.message || 'Lỗi API khi lưu thông tin');
+    } catch (error: unknown) {
+      const apiError = error as ApiError;
+      messageApi.destroy();
+      messageApi.error(apiError.response?.data?.message || 'Lỗi API khi lưu thông tin');
     } finally {
       setSaving(false);
     }
@@ -126,10 +126,13 @@ const CourseStudioPage: React.FC = () => {
     let values;
     try {
       values = await form.validateFields();
-    } catch (e) {
+    } catch (e: unknown) {
+      messageApi.destroy();
       messageApi.error('Vui lòng điền đầy đủ các trường bắt buộc có dấu (*) đỏ trên Form!');
       return; 
     }
+
+    messageApi.destroy();
 
     if (!values.description || !values.thumbnailUrl || !values.categoryId) {
       messageApi.warning('Để Xuất bản, bạn cần bổ sung: Danh mục, Link Ảnh đại diện và Mô tả chi tiết!');
@@ -161,8 +164,9 @@ const CourseStudioPage: React.FC = () => {
       await courseApi.update(course!.id, payload);
       messageApi.success('Tuyệt vời! Xuất bản khóa học thành công!');
       await loadCourseInfo();
-    } catch (error: any) {
-      messageApi.error(error.response?.data?.message || 'Backend từ chối Xuất bản do sai cấu trúc dữ liệu!');
+    } catch (error: unknown) {
+      const apiError = error as ApiError;
+      messageApi.error(apiError.response?.data?.message || 'Backend từ chối Xuất bản do sai cấu trúc dữ liệu!');
     } finally {
       setSaving(false);
     }
@@ -173,27 +177,33 @@ const CourseStudioPage: React.FC = () => {
       const vals = await modForm.validateFields();
       if (moduleModal.data) {
         await courseApi.updateModule(moduleModal.data.id, vals);
+        messageApi.destroy();
         messageApi.success('Đã cập nhật Module');
       } else {
         await courseApi.createModule(course!.id, { ...vals, sortOrder: curriculum.length + 1 });
+        messageApi.destroy();
         messageApi.success('Đã thêm Module');
       }
       setModuleModal({ open: false });
       modForm.resetFields();
       await reloadCurriculum(course!.id); 
-    } catch (err: any) {
-      if (err.errorFields) return; 
-      messageApi.error(err.response?.data?.message || 'Lỗi lưu Module');
+    } catch (err: unknown) {
+      const apiError = err as ApiError;
+      messageApi.destroy();
+      messageApi.error(apiError.response?.data?.message || 'Lỗi lưu Module');
     }
   };
 
   const deleteModule = async (moduleId: string) => {
     try {
       await courseApi.deleteModule(moduleId);
+      messageApi.destroy();
       messageApi.success('Đã xóa Module');
       await reloadCurriculum(course!.id);
-    } catch (err: any) {
-      messageApi.error(err.response?.data?.message || 'Lỗi xóa Module');
+    } catch (err: unknown) {
+      const apiError = err as ApiError;
+      messageApi.destroy();
+      messageApi.error(apiError.response?.data?.message || 'Lỗi xóa Module');
     }
   };
 
@@ -203,36 +213,40 @@ const CourseStudioPage: React.FC = () => {
       const payload = { ...vals, lessonType: vals.lessonType || 'VIDEO', isPreview: vals.isPreview || false };
       if (lessonModal.data) {
         await courseApi.updateLesson(lessonModal.data.id, payload);
+        messageApi.destroy();
         messageApi.success('Đã cập nhật Bài học');
       } else {
         await courseApi.createLesson(lessonModal.moduleId!, { ...payload, sortOrder: 99 });
+        messageApi.destroy();
         messageApi.success('Đã thêm Bài học');
       }
       setLessonModal({ open: false });
       lessForm.resetFields();
       await reloadCurriculum(course!.id);
-    } catch (err: any) {
-      if (err.errorFields) return;
-      messageApi.error(err.response?.data?.message || 'Lỗi lưu Bài học');
+    } catch (err: unknown) {
+      const apiError = err as ApiError;
+      messageApi.destroy();
+      messageApi.error(apiError.response?.data?.message || 'Lỗi lưu Bài học');
     }
   };
 
   const deleteLesson = async (lessonId: string) => {
     try {
-      if (!lessonId) {
-        messageApi.error('Lỗi Frontend: Bài học này không có ID do Backend trả về null!');
-        return;
-      }
       await courseApi.deleteLesson(lessonId);
+      messageApi.destroy();
       messageApi.success('Đã xóa Bài học');
       await reloadCurriculum(course!.id);
-    } catch (err: any) {
-      messageApi.error(err.response?.data?.message || 'Lỗi xóa Bài học');
+    } catch (err: unknown) {
+      const apiError = err as ApiError;
+      messageApi.destroy();
+      messageApi.error(apiError.response?.data?.message || 'Lỗi xóa Bài học');
     }
   };
 
   if (initialLoading) return <div className="flex h-screen items-center justify-center"><Spin size="large" /></div>;
   if (!course) return <Empty description="Không tìm thấy khóa học" className="mt-20" />;
+
+  const isPublished = course.status === 'PUBLISHED';
 
   return (
     <div className="mx-auto max-w-5xl p-4 md:p-6 lg:p-8 relative">
@@ -250,14 +264,25 @@ const CourseStudioPage: React.FC = () => {
           <div>
             <Title level={4} className="m-0 text-gray-800">{course.title}</Title>
             <Space className="mt-1">
-              <Tag color={course.status === 'PUBLISHED' ? 'success' : 'warning'}>{course.statusText || course.status}</Tag>
+              <Tag color={isPublished ? 'success' : 'warning'}>{course.statusText || course.status}</Tag>
               <Text type="secondary" className="text-xs">ID: {course.id}</Text>
             </Space>
           </div>
         </div>
         <Space>
-          <Button icon={<SaveOutlined />} onClick={handleSaveInfo} loading={saving}>Lưu nháp</Button>
-          <Button type="primary" className="bg-blue-600" icon={<SendOutlined />} onClick={handlePublish} loading={saving}>Xuất bản</Button>
+          <Button icon={<SaveOutlined />} onClick={handleSaveInfo} loading={saving}>
+            {isPublished ? 'Lưu thay đổi' : 'Lưu nháp'}
+          </Button>
+          <Button 
+            type="primary" 
+            className={isPublished ? "bg-gray-400" : "bg-blue-600"} 
+            icon={<SendOutlined />} 
+            onClick={handlePublish} 
+            loading={saving}
+            disabled={isPublished}
+          >
+            {isPublished ? 'Đã xuất bản' : 'Xuất bản'}
+          </Button>
         </Space>
       </div>
 
@@ -287,7 +312,7 @@ const CourseStudioPage: React.FC = () => {
                     </Form.Item>
                   </Col>
                   <Col span={12}>
-                    <Form.Item name="level" label="Cấp độ" rules={[{ required: true }]}>
+                    <Form.Item name="level" label="Cấp độ" rules={[{ required: true, message: 'Vui lòng chọn cấp độ' }]}>
                       <Select size="large">
                         <Select.Option value="BEGINNER">Cơ bản</Select.Option>
                         <Select.Option value="INTERMEDIATE">Trung cấp</Select.Option>
@@ -335,7 +360,6 @@ const CourseStudioPage: React.FC = () => {
                           </Space>
                         }
                       >
-                        {/* THAY THẾ COMPONENT <List> BỊ DEPRECATED BẰNG THẺ DIV THUẦN TÚY */}
                         <div className="bg-white rounded-md mb-3 border border-gray-100 flex flex-col">
                           {(!mod.lessons || mod.lessons.length === 0) ? (
                             <div className="p-3 text-center text-gray-400 text-sm">Chưa có bài học</div>
@@ -371,7 +395,7 @@ const CourseStudioPage: React.FC = () => {
         ]}
       />
 
-      <Modal title={moduleModal.data ? 'Sửa Module' : 'Thêm Module'} open={moduleModal.open} onCancel={() => setModuleModal({ open: false })} onOk={submitModule} destroyOnClose>
+      <Modal title={moduleModal.data ? 'Sửa Module' : 'Thêm Module'} open={moduleModal.open} onCancel={() => setModuleModal({ open: false })} onOk={submitModule} destroyOnHidden>
         <Form form={modForm} layout="vertical">
           <Form.Item name="title" label="Tiêu đề Module" rules={[{ required: true }]}>
             <Input />
@@ -379,7 +403,7 @@ const CourseStudioPage: React.FC = () => {
         </Form>
       </Modal>
 
-      <Modal title={lessonModal.data ? 'Sửa Bài học' : 'Thêm Bài học'} open={lessonModal.open} onCancel={() => setLessonModal({ open: false })} onOk={submitLesson} width={600} destroyOnClose>
+      <Modal title={lessonModal.data ? 'Sửa Bài học' : 'Thêm Bài học'} open={lessonModal.open} onCancel={() => setLessonModal({ open: false })} onOk={submitLesson} width={600} destroyOnHidden>
         <Form form={lessForm} layout="vertical">
           <Form.Item name="title" label="Tiêu đề bài học" rules={[{ required: true }]}>
             <Input />

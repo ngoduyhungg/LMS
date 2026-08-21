@@ -11,7 +11,7 @@ const CourseStatusTag = ({ status, statusText }: CourseStatusTagProps) => {
     case CourseStatus.DRAFT:
       return <Tag color="blue">{statusText || 'Bản nháp'}</Tag>;
 
-    case CourseStatus.OPEN:
+    case CourseStatus.PUBLISHED:
       return <Tag color="success">{statusText || 'Đang mở'}</Tag>;
 
     case CourseStatus.CLOSED:

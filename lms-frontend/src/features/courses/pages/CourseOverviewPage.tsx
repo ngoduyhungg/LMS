@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Typography, Card, Tag, Button, Spin, Row, Col, Collapse, List, Empty, Skeleton, Divider } from 'antd';
+import { Typography, Card, Tag, Button, Spin, Row, Col, Collapse, Empty, Skeleton, Divider } from 'antd';
 import { ArrowLeftOutlined, BookOutlined, ClockCircleOutlined, UserOutlined, PlayCircleOutlined } from '@ant-design/icons';
 import { courseApi } from '../api/course-api';
 import { type Course, CourseLevel, CourseStatus, type Module } from '../types/course-type';
@@ -10,7 +10,7 @@ import { USER_ROLE } from '@/features/users/types/user-role-type';
 const { Title, Text, Paragraph } = Typography;
 
 const CourseOverviewPage: React.FC = () => {
-  const { id: routeParam } = useParams<{ id: string }>(); // Thực chất là SLUG
+  const { id: routeParam } = useParams<{ id: string }>(); 
   const navigate = useNavigate();
   const { user } = useAppSelector((state) => state.auth);
 
@@ -22,7 +22,6 @@ const CourseOverviewPage: React.FC = () => {
   const [loadingCurriculum, setLoadingCurriculum] = useState(true);
   const [errorCourse, setErrorCourse] = useState(false);
 
-  // Derived state xử lý triệt để lỗi react-hooks/set-state-in-effect
   if (routeParam !== currentParam) {
     setCurrentParam(routeParam);
     setLoadingCourse(true);
@@ -37,18 +36,17 @@ const CourseOverviewPage: React.FC = () => {
   useEffect(() => {
     if (!routeParam) return;
 
-    // 1. Fetch bằng SLUG
     courseApi.getDetail(routeParam)
       .then(res => {
         const courseData = res.data || res;
         setCourse(courseData);
         setErrorCourse(false);
 
-        // 2. Lấy ID thật gọi Curriculum
         courseApi.getCurriculum(courseData.id)
           .then(currRes => {
-            const data = currRes.data || currRes.items || currRes;
-            setCurriculum(Array.isArray(data) ? data : []);
+            // Chuẩn hóa Parse Curriculum theo Option B
+            const modulesList = currRes.data?.modules || currRes.data || currRes || [];
+            setCurriculum(Array.isArray(modulesList) ? modulesList : []);
           })
           .catch(err => {
             console.warn('Backend chưa có/lỗi API Curriculum:', err);
@@ -147,19 +145,18 @@ const CourseOverviewPage: React.FC = () => {
                       key: mod.id,
                       label: <div className="font-semibold text-gray-800 py-1">{mod.title}</div>,
                       children: (
-                        <List
-                          itemLayout="horizontal"
-                          dataSource={mod.lessons || []}
-                          renderItem={(lesson) => (
-                            <List.Item className="border-b-0 py-2 hover:bg-gray-50 px-2 rounded-md transition-colors cursor-pointer">
-                              <div className="flex items-center gap-3 text-gray-600">
+                        <div className="flex flex-col">
+                          {(!mod.lessons || mod.lessons.length === 0) ? (
+                            <div className="text-gray-400 py-2 text-sm italic">Chưa có bài học nào trong học phần này.</div>
+                          ) : (
+                            mod.lessons.map(lesson => (
+                              <div key={lesson.id} className="flex items-center gap-3 text-gray-600 py-2 border-b border-gray-50 last:border-0 hover:bg-gray-50 px-2 rounded-md transition-colors cursor-pointer">
                                 <PlayCircleOutlined className="text-blue-500" />
                                 <span>{lesson.title}</span>
                               </div>
-                            </List.Item>
+                            ))
                           )}
-                          locale={{ emptyText: 'Chưa có bài học nào trong học phần này.' }}
-                        />
+                        </div>
                       )
                     }))}
                   />

@@ -22,7 +22,7 @@ export const courseFormFields: FormField<Course>[] = [
     disabled: true,
   },
   {
-    name: 'name',
+    name: 'title', // ĐÃ FIX: Đổi từ 'name' sang 'title' để khớp với Interface Course
     label: 'Tên khóa học',
     type: FormFieldType.Input,
     placeholder: 'Nhập tên khóa học',

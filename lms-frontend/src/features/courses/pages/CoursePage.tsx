@@ -5,7 +5,7 @@ import { useAppSelector } from '@/app/redux/hooks';
 import { USER_ROLE } from '@/features/users/types/user-role-type';
 import useTable from '@/shared/hooks/useTable';
 import { courseApi, getCategories } from '../api/course-api';
-import { type Course, type Category, CourseLevel } from '../types/course-type';
+import { type Course, type Category, CourseLevel, type ApiError } from '../types/course-type';
 import type { CourseFilterParams } from '../types/course-filter-params-type';
 import CourseCard from '../components/CourseCard';
 import { useNavigate } from 'react-router-dom';
@@ -19,7 +19,6 @@ const CoursePage = () => {
   const isInstructor = user?.role === USER_ROLE.INSTRUCTOR;
   const isAdminOrInstructor = isAdmin || isInstructor;
 
-  // Sử dụng Hook messageApi để triệt tiêu lỗi "Static function can not consume context"
   const [messageApi, contextHolder] = message.useMessage();
 
   const [categories, setCategories] = useState<{ label: string; value: string }[]>([]);
@@ -33,14 +32,14 @@ const CoursePage = () => {
     const fetchCategories = async () => {
       try {
         const res = await getCategories();
-        const catData = res.data || res.items || res;
+        const catData = Array.isArray(res) ? res : res.items || [];
         if (Array.isArray(catData)) {
           setCategories([
             { label: 'Tất cả', value: 'all' }, 
             ...catData.map((c: Category) => ({ label: c.name, value: c.id }))
           ]);
         }
-      } catch (error) {
+      } catch (error: unknown) {
         setCategories([{ label: 'Tất cả', value: 'all' }]);
       }
     };
@@ -80,8 +79,9 @@ const CoursePage = () => {
       const courseData = res.data || res;
       const newCourseIdentifier = courseData.slug || courseData.id;
       if (newCourseIdentifier) navigate(`/course-management/${newCourseIdentifier}/edit`);
-    } catch (error: any) {
-      messageApi.error(error.response?.data?.message || 'Lỗi khi tạo khóa học');
+    } catch (error: unknown) {
+      const apiError = error as ApiError;
+      messageApi.error(apiError.response?.data?.message || 'Lỗi khi tạo khóa học');
     } finally {
       setIsCreating(false);
     }
