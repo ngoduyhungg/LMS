@@ -7,7 +7,7 @@ import com.lms.courseservice.domain.model.Module;
 import org.mapstruct.*;
 import java.util.List;
 
-@Mapper(componentModel = "spring", unmappedTargetPolicy = ReportingPolicy.IGNORE, builder = @Builder(disableBuilder = true))
+@Mapper(componentModel = "spring", uses = {LessonRestMapper.class},unmappedTargetPolicy = ReportingPolicy.IGNORE, builder = @Builder(disableBuilder = true))
 public interface ModuleRestMapper {
     ModuleCommand toCommand(ModuleUpsertRequest request);
     ModuleResponse toResponse(Module module);

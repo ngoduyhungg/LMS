@@ -19,6 +19,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.Objects;
 
 @Service
 @RequiredArgsConstructor
@@ -79,10 +80,15 @@ public class LessonApplicationService implements ManageLessonUseCase, GetLessonU
         targetModule.getLessons().add(newLesson);
 
         // 5. Save FULL Course và Publish
-        courseRepository.save(fullCourse);
+        Course savedCourse = courseRepository.save(fullCourse);
         publishCourseProjection(fullCourse);
 
-        return newLesson;
+        return savedCourse.getModules().stream()
+                .filter(m -> m.getId().equals(moduleId))
+                .flatMap(m -> m.getLessons().stream())
+                .filter(l -> l.getTitle().equals(request.title()) && Objects.equals(l.getSortOrder(), request.sortOrder()))
+                .reduce((first, second) -> second)
+                .orElse(newLesson);
     }
 
     @Override
