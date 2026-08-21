@@ -78,6 +78,10 @@ export const courseApi = {
     const res = await axiosClient.post(`${API_URL_PREFIX}/modules/${moduleId}/lessons`, payload);
     return res.data;
   },
+  getLessonDetail: async (lessonId: string | number) => {
+    const res = await axiosClient.get(`/api/courses/lessons/${lessonId}`);
+    return res.data;
+  },
   updateLesson: async (lessonId: string, payload: LessonPayload) => {
     const res = await axiosClient.put(`${API_URL_PREFIX}/lessons/${lessonId}`, payload);
     return res.data;

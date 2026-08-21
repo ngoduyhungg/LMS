@@ -1,11 +1,13 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Typography, Card, Tag, Button, Spin, Row, Col, Collapse, Empty, Skeleton, Divider } from 'antd';
+import { Typography, Card, Tag, Button, Spin, Row, Col, Collapse, Empty, Skeleton, Divider, message } from 'antd';
 import { ArrowLeftOutlined, BookOutlined, ClockCircleOutlined, UserOutlined, PlayCircleOutlined } from '@ant-design/icons';
 import { courseApi } from '../api/course-api';
-import { type Course, CourseLevel, CourseStatus, type Module } from '../types/course-type';
+import { type Course, CourseLevel, CourseStatus, type Module, type ApiError } from '../types/course-type';
 import { useAppSelector } from '@/app/redux/hooks';
 import { USER_ROLE } from '@/features/users/types/user-role-type';
+import { studentLearningApi } from '@/features/enrollments/api/enrollment-api';
+import type { EnrollmentResponse } from '@/features/enrollments/types/enrollment-type';
 
 const { Title, Text, Paragraph } = Typography;
 
@@ -14,6 +16,9 @@ const CourseOverviewPage: React.FC = () => {
   const navigate = useNavigate();
   const { user } = useAppSelector((state) => state.auth);
 
+  // FIX: Khởi tạo messageApi để không bị lỗi Static function context
+  const [messageApi, contextHolder] = message.useMessage();
+
   const [currentParam, setCurrentParam] = useState(routeParam);
   const [course, setCourse] = useState<Course | null>(null);
   const [curriculum, setCurriculum] = useState<Module[]>([]);
@@ -21,6 +26,10 @@ const CourseOverviewPage: React.FC = () => {
   const [loadingCourse, setLoadingCourse] = useState(true);
   const [loadingCurriculum, setLoadingCurriculum] = useState(true);
   const [errorCourse, setErrorCourse] = useState(false);
+
+  const [enrollment, setEnrollment] = useState<EnrollmentResponse | null>(null);
+  const [loadingEnrollment, setLoadingEnrollment] = useState(false);
+  const [isEnrolling, setIsEnrolling] = useState(false);
 
   if (routeParam !== currentParam) {
     setCurrentParam(routeParam);
@@ -32,6 +41,7 @@ const CourseOverviewPage: React.FC = () => {
   }
 
   const isAdminOrInstructor = user?.role === USER_ROLE.ADMIN || user?.role === USER_ROLE.INSTRUCTOR;
+  const isStudent = user?.role === USER_ROLE.STUDENT;
 
   useEffect(() => {
     if (!routeParam) return;
@@ -44,7 +54,6 @@ const CourseOverviewPage: React.FC = () => {
 
         courseApi.getCurriculum(courseData.id)
           .then(currRes => {
-            // Chuẩn hóa Parse Curriculum theo Option B
             const modulesList = currRes.data?.modules || currRes.data || currRes || [];
             setCurriculum(Array.isArray(modulesList) ? modulesList : []);
           })
@@ -53,6 +62,20 @@ const CourseOverviewPage: React.FC = () => {
             setCurriculum([]);
           })
           .finally(() => setLoadingCurriculum(false));
+
+        if (isStudent) {
+          setLoadingEnrollment(true);
+          studentLearningApi.getEnrollmentDetail(courseData.id)
+            .then(enrollRes => setEnrollment(enrollRes))
+            .catch(err => {
+              const status = err.response?.status;
+              // FIX: Bắt luôn cả lỗi 400 (Bad Request) từ Backend ném ra để Console không bị đỏ
+              if (status !== 404 && status !== 400) {
+                console.warn('Lỗi check enrollment:', err);
+              }
+            })
+            .finally(() => setLoadingEnrollment(false));
+        }
       })
       .catch(err => {
         console.error('Lỗi khi tải chi tiết khóa học:', err);
@@ -60,7 +83,26 @@ const CourseOverviewPage: React.FC = () => {
         setLoadingCurriculum(false);
       })
       .finally(() => setLoadingCourse(false));
-  }, [routeParam]);
+  }, [routeParam, isStudent]);
+
+  const handleEnroll = async () => {
+    if (!course) return;
+    try {
+      setIsEnrolling(true);
+      await studentLearningApi.enroll(course.id);
+      messageApi.success('Đăng ký khóa học thành công!');
+      navigate(`/learning/courses/${course.id}`);
+    } catch (error: unknown) {
+      const apiErr = error as ApiError;
+      const status = apiErr.response?.status;
+      if (status === 409) messageApi.warning('Bạn đã đăng ký khóa học này.');
+      else if (status === 400) messageApi.warning('Khóa học này hiện chưa thể đăng ký.');
+      else if (status === 403) messageApi.error('Bạn không có quyền đăng ký khóa học này.');
+      else messageApi.error('Lỗi khi đăng ký khóa học. Vui lòng thử lại sau.');
+    } finally {
+      setIsEnrolling(false);
+    }
+  };
 
   const getLevelColor = (level: string) => {
     switch (level) {
@@ -80,8 +122,36 @@ const CourseOverviewPage: React.FC = () => {
     );
   }
 
+  const ActionButton = () => {
+    if (isAdminOrInstructor) {
+      return (
+        <Button type="primary" size="large" className="w-full bg-gray-800 font-semibold h-12 text-lg" onClick={() => navigate(`/course-management/${course!.slug || course!.id}/edit`)}>
+          Quản lý khóa học
+        </Button>
+      );
+    }
+    
+    if (isStudent) {
+      if (loadingEnrollment) return <Button size="large" className="w-full h-12" loading>Đang tải...</Button>;
+      if (enrollment) {
+        return (
+          <Button type="primary" size="large" className="w-full bg-green-600 font-semibold h-12 text-lg" onClick={() => navigate(`/learning/courses/${course!.id}`)}>
+            Tiếp tục học ({enrollment.progressPercentage}%)
+          </Button>
+        );
+      }
+      return (
+        <Button type="primary" size="large" className="w-full bg-blue-600 font-semibold h-12 text-lg" onClick={handleEnroll} loading={isEnrolling}>
+          Đăng ký học ngay
+        </Button>
+      );
+    }
+    return null;
+  };
+
   return (
     <div className="mx-auto max-w-6xl p-4 md:p-6 lg:p-8">
+      {contextHolder}
       <Button type="text" icon={<ArrowLeftOutlined />} onClick={() => navigate(-1)} className="mb-6 hover:bg-gray-100">
         Quay lại
       </Button>
@@ -118,15 +188,7 @@ const CourseOverviewPage: React.FC = () => {
                 </Paragraph>
 
                 <div className="block lg:hidden mb-8">
-                  {!isAdminOrInstructor ? (
-                    <Button type="primary" size="large" className="w-full bg-blue-600 font-semibold h-12 text-lg">
-                      Đăng ký khóa học
-                    </Button>
-                  ) : (
-                    <Button type="primary" size="large" className="w-full bg-gray-800 font-semibold h-12 text-lg" onClick={() => navigate(`/course-management/${course!.slug || course!.id}/edit`)}>
-                      Quản lý khóa học
-                    </Button>
-                  )}
+                  <ActionButton />
                 </div>
               </div>
 
@@ -139,7 +201,7 @@ const CourseOverviewPage: React.FC = () => {
                   <Skeleton active paragraph={{ rows: 4 }} />
                 ) : curriculum.length > 0 ? (
                   <Collapse 
-                    expandIconPosition="end"
+                    expandIconPlacement="end"
                     className="bg-white rounded-lg shadow-sm border-gray-100"
                     items={curriculum.map((mod) => ({
                       key: mod.id,
@@ -172,7 +234,8 @@ const CourseOverviewPage: React.FC = () => {
 
         <Col xs={24} lg={8}>
           <div className="sticky top-24">
-            <Card className="overflow-hidden rounded-xl border-gray-100 shadow-md" bodyStyle={{ padding: 0 }}>
+            {/* FIX: Thay bodyStyle thành styles={{ body: {...} }} */}
+            <Card className="overflow-hidden rounded-xl border-gray-100 shadow-md" styles={{ body: { padding: 0 } }}>
               <div className="flex h-56 items-center justify-center bg-gray-100">
                 {loadingCourse ? (
                   <Spin />
@@ -188,15 +251,7 @@ const CourseOverviewPage: React.FC = () => {
 
               <div className="p-6">
                 <div className="hidden lg:block mb-6">
-                  {!isAdminOrInstructor ? (
-                    <Button type="primary" size="large" className="w-full bg-blue-600 font-semibold h-12 text-lg">
-                      Đăng ký khóa học
-                    </Button>
-                  ) : (
-                    <Button type="primary" size="large" className="w-full bg-gray-800 font-semibold h-12 text-lg" onClick={() => navigate(`/course-management/${course!.slug || course!.id}/edit`)}>
-                      Quản lý khóa học
-                    </Button>
-                  )}
+                  <ActionButton />
                 </div>
 
                 <Title level={5} className="mb-4 mt-0 border-b border-gray-100 pb-2 text-gray-800">Thông tin chung</Title>
