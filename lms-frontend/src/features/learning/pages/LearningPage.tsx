@@ -31,14 +31,10 @@ const LearningPage: React.FC = () => {
     const initLearning = async () => {
       try {
         setLoading(true);
-        // 1. Fetch Enrollment check
         const enr = await studentLearningApi.getEnrollmentDetail(courseId);
         setEnrollment(enr);
 
-        // 2. Fetch Curriculum (KHÔNG gọi getDetail bằng ID nữa để tránh lỗi 404 từ Backend)
         const currRes = await courseApi.getCurriculum(courseId);
-        
-        // Trích xuất Title từ response của Curriculum
         const title = currRes.data?.title || currRes.title || `Khóa học #${courseId}`;
         setCourseTitle(title);
         
@@ -46,7 +42,6 @@ const LearningPage: React.FC = () => {
         const flatModules = Array.isArray(modulesList) ? modulesList : [];
         setCurriculum(flatModules);
 
-        // 3. Set Active Lesson
         if (enr.lastAccessedLessonId) {
           setActiveLessonId(String(enr.lastAccessedLessonId));
         } else {
@@ -59,7 +54,6 @@ const LearningPage: React.FC = () => {
         messageApi.destroy();
         if (error.response?.status === 404) {
           messageApi.error('Bạn chưa đăng ký khóa học này hoặc khóa học không tồn tại.');
-          // Đẩy về my-learning thay vì courses/:id để tránh lỗi ID/Slug Loop
           navigate('/my-learning');
         } else {
           messageApi.error('Lỗi tải dữ liệu học tập.');
@@ -71,7 +65,6 @@ const LearningPage: React.FC = () => {
     initLearning();
   }, [courseId, navigate]);
 
-  // Load Content when active lesson changes
   useEffect(() => {
     if (!activeLessonId) return;
     const fetchLesson = async () => {
@@ -94,7 +87,6 @@ const LearningPage: React.FC = () => {
     if (!courseId || !activeLessonId) return;
     try {
       setUpdatingProgress(true);
-      // PUT Progress, backend tự tính %
       const newEnr = await studentLearningApi.updateProgress(courseId, {
         lessonId: activeLessonId,
         watchedSeconds: 0,
@@ -108,9 +100,13 @@ const LearningPage: React.FC = () => {
       } else {
         messageApi.success('Đã lưu tiến độ!');
       }
-    } catch (err) {
+    } catch (err: any) {
       messageApi.destroy();
-      messageApi.error('Không thể lưu tiến độ.');
+      if (err.response?.data?.code === 'ENROLLMENT_NOT_ACTIVE') {
+        messageApi.warning('Khóa học này đã kết thúc, không thể lưu thêm tiến độ.');
+      } else {
+        messageApi.error('Không thể lưu tiến độ.');
+      }
     } finally {
       setUpdatingProgress(false);
     }
@@ -122,6 +118,9 @@ const LearningPage: React.FC = () => {
 
   if (loading) return <div className="flex h-screen items-center justify-center bg-gray-50"><Spin size="large" /></div>;
   if (!enrollment) return null;
+
+  // XÁC ĐỊNH TRẠNG THÁI KHÓA NÚT BẤM (UX Fix)
+  const isCourseCompleted = enrollment.status === 'COMPLETED';
 
   return (
     <Layout className="h-screen overflow-hidden bg-white">
@@ -138,7 +137,7 @@ const LearningPage: React.FC = () => {
             </Text>
             <Progress percent={enrollment.progressPercentage} showInfo={false} size="small" strokeColor="#52c41a" trailColor="#374151" className="m-0" />
           </div>
-          {enrollment.status === 'COMPLETED' && <Tag color="success" className="m-0 border-0">HOÀN THÀNH</Tag>}
+          {isCourseCompleted && <Tag color="success" className="m-0 border-0">HOÀN THÀNH</Tag>}
         </div>
       </Header>
 
@@ -213,16 +212,19 @@ const LearningPage: React.FC = () => {
                 )}
 
                 <div className="flex justify-end pt-6 border-t border-gray-100 mt-10">
+                  {/* LOGIC NÚT BẤM MỚI TẠI ĐÂY */}
                   <Button 
-                    type={isLessonCompleted(activeLessonData.id) ? 'default' : 'primary'} 
+                    type={(isLessonCompleted(activeLessonData.id) || isCourseCompleted) ? 'default' : 'primary'} 
                     size="large" 
-                    className={isLessonCompleted(activeLessonData.id) ? 'bg-gray-100 text-gray-600' : 'bg-blue-600'}
+                    className={(isLessonCompleted(activeLessonData.id) || isCourseCompleted) ? 'bg-gray-100 text-gray-600' : 'bg-blue-600'}
                     icon={<CheckOutlined />}
                     onClick={handleMarkComplete}
                     loading={updatingProgress}
-                    disabled={isLessonCompleted(activeLessonData.id)}
+                    disabled={isLessonCompleted(activeLessonData.id) || isCourseCompleted}
                   >
-                    {isLessonCompleted(activeLessonData.id) ? 'Đã hoàn thành' : 'Đánh dấu hoàn thành'}
+                    {isLessonCompleted(activeLessonData.id) 
+                      ? 'Đã hoàn thành bài này' 
+                      : (isCourseCompleted ? 'Đã hoàn thành bài học' : 'Đánh dấu hoàn thành')}
                   </Button>
                 </div>
               </div>
