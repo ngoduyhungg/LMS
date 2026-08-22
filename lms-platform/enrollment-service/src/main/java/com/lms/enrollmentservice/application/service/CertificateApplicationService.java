@@ -1,9 +1,6 @@
 package com.lms.enrollmentservice.application.service;
 
-import com.lms.enrollmentservice.application.port.in.GetCertificateUseCase;
-import com.lms.enrollmentservice.application.port.in.ManageCertificateTemplateUseCase;
-import com.lms.enrollmentservice.application.port.in.ManageCertificateUseCase;
-import com.lms.enrollmentservice.application.port.in.ResetDevCertificateUseCase;
+import com.lms.enrollmentservice.application.port.in.*;
 import com.lms.enrollmentservice.application.port.in.command.UpsertCertificateCommand;
 import com.lms.enrollmentservice.application.port.out.*;
 import com.lms.enrollmentservice.application.port.out.dto.CertificateDocumentModel;
@@ -27,7 +24,7 @@ import java.util.List;
 @Service
 @RequiredArgsConstructor
 @Transactional
-public class CertificateApplicationService implements ManageCertificateUseCase, GetCertificateUseCase, ManageCertificateTemplateUseCase, ResetDevCertificateUseCase {
+public class CertificateApplicationService implements ManageCertificateUseCase, GetCertificateUseCase, ManageCertificateTemplateUseCase, ResetDevCertificateUseCase, DownloadCertificateUseCase {
 
     private final UserCertificateRepositoryPort userCertificateRepository;
     private final CertificateRepositoryPort certificateRepository;
@@ -91,19 +88,28 @@ public class CertificateApplicationService implements ManageCertificateUseCase, 
         String fileName = String.format("certificate_%d_%s_%s.pdf",
                 enrollment.getCourseId(), enrollment.getUserId(), certCode);
 
-        String realPdfUrl = fileStoragePort.uploadFile(fileName, pdfBytes, "application/pdf");
+        fileStoragePort.uploadFile(fileName, pdfBytes, "application/pdf");
 
         // 13 & 14. Issue New Certificate (Sử dụng đúng certCode và issuedAtZoned)
         UserCertificate newUserCert = UserCertificate.issueNew(
                 certificateTemplate.getId(),
                 enrollment.getUserId(),
                 enrollment.getId(),
-                realPdfUrl,
+                fileName,
                 certCode,
                 issuedAtZoned
         );
 
         return userCertificateRepository.save(newUserCert);
+    }
+    @Override
+    @Transactional(readOnly = true)
+    public byte[] downloadCertificatePdf(String certificateCode) {
+        UserCertificate userCertificate = userCertificateRepository.findByCertificateCode(certificateCode)
+                .orElseThrow(() -> new BusinessException(ErrorCode.CERTIFICATE_NOT_FOUND));
+
+        // Cột pdfUrl giờ đây chứa Object Key (fileName)
+        return fileStoragePort.downloadFile(userCertificate.getPdfUrl());
     }
 
     @Override
@@ -144,4 +150,5 @@ public class CertificateApplicationService implements ManageCertificateUseCase, 
             userCertificateRepository.deleteByEnrollmentId(enrollmentId);
         }
     }
+
 }

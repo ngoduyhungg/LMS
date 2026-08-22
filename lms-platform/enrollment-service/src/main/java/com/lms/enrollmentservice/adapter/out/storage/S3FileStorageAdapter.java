@@ -9,6 +9,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 import software.amazon.awssdk.core.sync.RequestBody;
 import software.amazon.awssdk.services.s3.S3Client;
+import software.amazon.awssdk.services.s3.model.GetObjectRequest;
 import software.amazon.awssdk.services.s3.model.PutObjectRequest;
 import software.amazon.awssdk.services.s3.model.S3Exception;
 
@@ -37,8 +38,7 @@ public class S3FileStorageAdapter implements FileStoragePort {
             // Thực thi upload mảng byte lên S3/MinIO
             s3Client.putObject(putObjectRequest, RequestBody.fromBytes(content));
 
-            // Trả về Absolute URL theo chiến lược Path-Style Access (MinIO Local).
-            // VD: http://localhost:9000/lms-certificates/certificate_8_user1_CERT-XXXX.pdf
+            // Trả về Absolute URL (Lưu ý: Sau khi fix Option A, giá trị này không còn lưu vào DB nữa mà chỉ trả về để debug)
             return endpoint.endsWith("/") ?
                     endpoint + bucketName + "/" + fileName :
                     endpoint + "/" + bucketName + "/" + fileName;
@@ -49,6 +49,30 @@ public class S3FileStorageAdapter implements FileStoragePort {
             throw new BusinessException(ErrorCode.INTERNAL_SERVER_ERROR);
         } catch (Exception e) {
             log.error("Unexpected/Network error occurred while uploading file: {}", fileName, e);
+            throw new BusinessException(ErrorCode.INTERNAL_SERVER_ERROR);
+        }
+    }
+
+    @Override
+    public byte[] downloadFile(String fileName) {
+        try {
+            GetObjectRequest request = GetObjectRequest.builder()
+                    .bucket(bucketName)
+                    .key(fileName)
+                    .build();
+
+            return s3Client.getObjectAsBytes(request).asByteArray();
+
+        } catch (S3Exception e) {
+            String errorMessage = e.awsErrorDetails() != null
+                    ? e.awsErrorDetails().errorMessage()
+                    : e.getMessage();
+
+            log.error("S3 error occurred while downloading file: {}. Error: {}", fileName, errorMessage, e);
+            throw new BusinessException(ErrorCode.INTERNAL_SERVER_ERROR);
+
+        } catch (Exception e) {
+            log.error("Unexpected/Network error occurred while downloading file: {}", fileName, e);
             throw new BusinessException(ErrorCode.INTERNAL_SERVER_ERROR);
         }
     }

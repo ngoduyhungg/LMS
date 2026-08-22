@@ -44,4 +44,9 @@ public class UserCertificatePersistenceAdapter implements UserCertificateReposit
     public void deleteByEnrollmentId(Long enrollmentId) {
         repository.deleteByEnrollmentId(enrollmentId);
     }
+    @Override
+    public Optional<UserCertificate> findByCertificateCode(String certificateCode) {
+        return repository.findByCertificateCode(certificateCode)
+                .map(mapper::toDomain);
+    }
 }
