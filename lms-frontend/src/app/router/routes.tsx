@@ -26,6 +26,11 @@ import PaymentPage from '@/features/payment/pages/PaymentPage';
 import CourseOverviewPage from '@/features/courses/pages/CourseOverviewPage';
 import CourseStudioPage from '@/features/courses/pages/CourseStudioPage';
 
+// UI-4 STUDENT LEARNING IMPORTS
+import MyLearningPage from '@/features/enrollments/pages/MyLearningPage';
+import LearningPage from '@/features/learning/pages/LearningPage';
+import MyCertificatesPage from '@/features/certificates/pages/MyCertificatesPage';
+
 export const router = createBrowserRouter([
   /******************** AUTH *********************/
   {
@@ -57,11 +62,21 @@ export const router = createBrowserRouter([
           { path: 'parents', element: <ParentPage /> },
           { path: 'accounts', element: <UserPage /> },
           
-          /* --- KHU VỰC ĐỒNG BỘ ĐƯỜNG DẪN COURSE DOMAIN FOUNDATION --- */
+          /* --- FOUNDATION & DISCOVERY --- */
           { path: 'courses', element: <CoursePage /> },
-          { path: 'my-courses', element: <CoursePage /> },
-          { path: 'course-management', element: <CoursePage /> },
+          { path: 'courses/:id', element: <CourseOverviewPage /> },
           
+          /* --- UI-4: STUDENT LEARNING --- */
+          { path: 'my-learning', element: <MyLearningPage /> },
+          { path: 'learning/courses/:courseId', element: <LearningPage /> },
+          { path: 'my-certificates', element: <MyCertificatesPage /> },
+
+          /* --- UI-3: COURSE AUTHORING (INSTRUCTOR) --- */
+          { path: 'course-management', element: <CoursePage /> },
+          { path: 'course-management/:id', element: <CourseOverviewPage /> },
+          { path: 'course-management/:id/edit', element: <CourseStudioPage /> },
+          
+          /* --- OTHER DOMAINS --- */
           { path: 'rooms', element: <RoomPage /> },
           { path: 'schedules', element: <SchedulePage /> },
           { path: 'course-classes', element: <CourseClassPage /> },
@@ -72,13 +87,6 @@ export const router = createBrowserRouter([
           { path: 'tuition-invoices', element: <TuitionInvoicePage /> },
           { path: 'payments', element: <PaymentPage /> },
           { path: 'promotions', element: <PromotionPage /> },
-          { path: 'courses', element: <CoursePage /> },
-          { path: 'courses/:id', element: <CourseOverviewPage /> },
-          { path: 'my-courses', element: <CoursePage /> },
-          { path: 'my-courses/:id', element: <CourseOverviewPage /> },
-          { path: 'course-management', element: <CoursePage /> },
-          { path: 'course-management/:id', element: <CourseOverviewPage /> },
-          { path: 'course-management/:id/edit', element: <CourseStudioPage /> },
         ],
       },
     ],

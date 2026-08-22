@@ -36,7 +36,7 @@ const AppSidebar: React.FC<AppSidebarProps> = ({ collapsed, isMobile, onClose })
     { key: '/course-management', icon: <ReadOutlined />, label: 'Quản lý khóa học', roles: [USER_ROLE.INSTRUCTOR] },
     { key: '/enrollments', icon: <TeamOutlined />, label: 'Ghi danh', roles: [USER_ROLE.ADMIN] },
     { key: '/users', icon: <UserOutlined />, label: 'Người dùng', roles: [USER_ROLE.ADMIN] },
-    { key: '/certificates', icon: <SafetyCertificateOutlined />, label: 'Chứng chỉ' },
+    { key: '/my-certificates', icon: <SafetyCertificateOutlined />, label: 'Chứng chỉ' },
   ];
 
   const filterMenuByRole = (items: MenuItem[], role?: UserRole): MenuItem[] => {

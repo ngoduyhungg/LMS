@@ -21,7 +21,6 @@ export interface Course {
   createdAt?: string;
   updatedAt?: string;
   instructorName?: string;
-  // Các field legacy (sẽ dần bị loại bỏ bởi backend)
   courseCode?: string;
   totalSessions?: number;
 }
@@ -68,4 +67,40 @@ export interface Module {
   title: string;
   sortOrder?: number;
   lessons?: Lesson[];
+}
+
+// --- DTO PAYLOADS ---
+export interface CoursePayload {
+  title?: string;
+  summary?: string | null;
+  description?: string | null;
+  price?: number;
+  level?: string;
+  categoryId?: number | null;
+  thumbnailUrl?: string | null;
+  status?: string;
+}
+
+export interface ModulePayload {
+  title: string;
+  sortOrder?: number;
+}
+
+export interface LessonPayload {
+  title: string;
+  content?: string;
+  videoUrl?: string;
+  lessonType?: string;
+  isPreview?: boolean;
+  sortOrder?: number;
+}
+
+// --- ERROR TYPE ---
+export interface ApiError {
+  response?: {
+    status?: number;
+    data?: {
+      message?: string;
+    };
+  };
 }
