@@ -55,8 +55,11 @@ public class CertificateApplicationService implements ManageCertificateUseCase, 
         }
 
         // 4. Validate Certificate Template
-        Certificate certificateTemplate = certificateRepository.findByCourseId(enrollment.getCourseId())
-                .orElseThrow(() -> new BusinessException(ErrorCode.CERTIFICATE_NOT_FOUND));
+        java.util.Optional<Certificate> templateOpt = certificateRepository.findByCourseId(enrollment.getCourseId());
+        if (templateOpt.isEmpty()) {
+            return null;
+        }
+        Certificate certificateTemplate = templateOpt.get();
 
         // 5 & 6. Load CourseSummary & Validate Status
         CourseSummary summary = courseSummaryPort.getCourseSummary(enrollment.getCourseId());
