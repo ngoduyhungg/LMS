@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Typography, Row, Col, Card, Skeleton, Button } from 'antd';
+import { Typography, Row, Col, Card, Skeleton, Button, message } from 'antd';
 import { DownloadOutlined, SafetyCertificateOutlined } from '@ant-design/icons';
 import { certificateApi } from '../api/certificate-api';
 import type { Certificate } from '../types/certificate-type';
@@ -9,6 +9,8 @@ const { Title, Text } = Typography;
 const MyCertificatesPage: React.FC = () => {
   const [certificates, setCertificates] = useState<Certificate[]>([]);
   const [loading, setLoading] = useState(true);
+  const [downloadingId, setDownloadingId] = useState<string | null>(null);
+  const [messageApi, contextHolder] = message.useMessage();
 
   useEffect(() => {
     const fetchCertificates = async () => {
@@ -24,8 +26,23 @@ const MyCertificatesPage: React.FC = () => {
     fetchCertificates();
   }, []);
 
+  const handleDownload = async (pdfUrl: string, code: string) => {
+    try {
+      setDownloadingId(code);
+      // Ép tải file PDF về máy tính với tên file là Mã Chứng chỉ
+      await certificateApi.downloadPdf(pdfUrl, `${code}.pdf`);
+      messageApi.success('Tải chứng chỉ thành công!');
+    } catch (error) {
+      console.error('Lỗi khi tải PDF:', error);
+      messageApi.error('Không thể tải chứng chỉ lúc này. Vui lòng thử lại.');
+    } finally {
+      setDownloadingId(null);
+    }
+  };
+
   return (
     <div className="mx-auto max-w-7xl p-4 md:p-6 lg:p-8">
+      {contextHolder}
       <div className="mb-8 flex items-center gap-3">
         <SafetyCertificateOutlined className="text-3xl text-yellow-500" />
         <div>
@@ -66,11 +83,11 @@ const MyCertificatesPage: React.FC = () => {
                     type="primary" 
                     icon={<DownloadOutlined />} 
                     disabled={!cert.pdfUrl} 
-                    href={cert.pdfUrl} 
-                    target="_blank"
-                    className="w-full bg-gray-800"
+                    loading={downloadingId === cert.certificateCode}
+                    onClick={() => handleDownload(cert.pdfUrl!, cert.certificateCode)}
+                    className="w-full bg-gray-800 hover:bg-gray-700"
                   >
-                    Xem PDF
+                    Tải PDF
                   </Button>
                 </div>
               </Card>
