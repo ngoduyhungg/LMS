@@ -113,21 +113,30 @@ class CertificateApplicationServiceTest {
     }
 
     @Test
-    @DisplayName("Nên ném BusinessException (CERTIFICATE_NOT_FOUND) khi không tìm thấy Mẫu chứng chỉ")
-    void shouldThrowExceptionWhenCertificateTemplateNotFound() {
+    @DisplayName("Nên trả về null (Graceful exit) khi không tìm thấy Mẫu chứng chỉ thay vì ném lỗi")
+    void shouldReturnNullWhenCertificateTemplateNotFound() {
+        // Arrange
         Long enrollmentId = 2L;
         Long courseId = 1L;
 
-        Enrollment enrollment = Enrollment.builder().id(enrollmentId).courseId(courseId).userId("student-1").status(EnrollmentStatus.COMPLETED).build();
+        Enrollment enrollment = Enrollment.builder()
+                .id(enrollmentId)
+                .courseId(courseId)
+                .userId("student-1")
+                .status(EnrollmentStatus.COMPLETED)
+                .build();
 
         when(userCertificateRepository.existsByEnrollmentId(enrollmentId)).thenReturn(false);
         when(enrollmentRepository.findById(enrollmentId)).thenReturn(Optional.of(enrollment));
         when(certificateRepository.findByCourseId(courseId)).thenReturn(Optional.empty());
 
-        assertThatThrownBy(() -> certificateApplicationService.issueCertificateForEnrollment(enrollmentId))
-                .isInstanceOf(BusinessException.class)
-                .hasFieldOrPropertyWithValue("errorCode", ErrorCode.CERTIFICATE_NOT_FOUND);
+        // Act
+        UserCertificate result = certificateApplicationService.issueCertificateForEnrollment(enrollmentId);
 
+        // Assert (Dùng AssertJ cho đồng bộ với phong cách code của bạn)
+        org.assertj.core.api.Assertions.assertThat(result).isNull();
+
+        // Verify đảm bảo không có chứng chỉ rác nào được lưu xuống DB
         verify(userCertificateRepository, never()).save(any());
     }
 
