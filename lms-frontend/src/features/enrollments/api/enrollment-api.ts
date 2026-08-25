@@ -68,4 +68,19 @@ export const studentLearningApi = {
     const res = await axiosClient.put(`/api/enrollments/courses/${courseId}/progress`, payload);
     return res.data;
   }
+  
+};
+// ==========================================
+// UI-5 ADMIN ENROLLMENT MANAGEMENT CONTRACT
+// ==========================================
+export const adminEnrollmentApi = {
+  getAll: async (): Promise<EnrollmentResponse[]> => {
+    const res = await axiosClient.get('/api/admin/enrollments');
+    return res.data;
+  },
+  cancel: async (id: string | number): Promise<EnrollmentResponse> => {
+    // Contract đã verify: Payload body không cần thiết, Backend tự chuyển status = CANCELLED
+    const res = await axiosClient.put(`/api/admin/enrollments/${id}/cancel`);
+    return res.data;
+  }
 };

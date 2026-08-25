@@ -1,195 +1,182 @@
-import useTable from '@/shared/hooks/useTable';
-import PageHeader from '@/shared/components/page/PageHeader';
-import { Button } from 'antd';
-import ModalFormCustom from '@/shared/components/modal/ModalFormCustom';
-import { useFormModal } from '@/shared/hooks/useFormModal';
-import { FormModalMode } from '@/shared/types/form-modal-mode-type';
-import FilterTableCustom from '@/shared/components/table/FilterTableCustom';
-import { EnrollmentStatus, type Enrollment } from '../types/enrollment-type';
-import { enrollmentRoleAdminApi, enrollmentRoleStudentApi } from '../api/enrollment-api';
-import type { EnrollmentFilterParams } from '../types/enrollment-filter-params-type';
-import { enrollmentFilters } from '../constants/enrollment-filter-table';
-import { enrollmentFormFields } from '../constants/enrollment-form-fields';
-import TablePaginationCustom from '@/shared/components/table/TablePaginationCustom';
-import ActionGroup from '@/shared/components/table/ActionGroup';
-import { EyeOutlined, EditOutlined, DeleteOutlined, CheckOutlined } from '@ant-design/icons';
-import EnrollmentStatusTag from '../components/EnrollmentStatusTag';
-import type { SectionForm } from '@/shared/components/modal/ModalFormCustom';
-import { USER_ROLE } from '@/features/users/types/user-role-type';
+import React, { useEffect, useState } from 'react';
+import { Typography, Table, Tag, Progress, Button, Popconfirm, message } from 'antd';
+import { StopOutlined } from '@ant-design/icons';
+import { adminEnrollmentApi } from '../api/enrollment-api';
+import type { EnrollmentResponse } from '../types/enrollment-type';
 import { useAppSelector } from '@/app/redux/hooks';
-import { courseClassFormFields } from '@/features/course-class/constants/course-class-form-fields';
+import { USER_ROLE } from '@/features/users/types/user-role-type';
 
-const EnrollmentPage = () => {
-  const { getAll, create, update, active, remove } = enrollmentRoleAdminApi;
-  const { pause } = enrollmentRoleStudentApi;
+const { Title, Text } = Typography;
 
+const EnrollmentPage: React.FC = () => {
   const { user } = useAppSelector((state) => state.auth);
+  const [enrollments, setEnrollments] = useState<EnrollmentResponse[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [messageApi, contextHolder] = message.useMessage();
 
-  const { open, mode, selectedRecord, openCreate, openView, openEdit, close } =
-    useFormModal<Enrollment>();
+  const isAdmin = user?.role === USER_ROLE.ADMIN;
 
-  const {
-    data: enrollments,
+  const fetchEnrollments = async () => {
+    try {
+      setLoading(true);
+      const data = await adminEnrollmentApi.getAll();
+      setEnrollments(Array.isArray(data) ? data : []);
+    } catch (error: any) {
+      if (error.response?.status === 403) {
+        messageApi.error('Bạn không có quyền quản lý ghi danh.');
+      } else {
+        messageApi.error(error.response?.data?.message || 'Lỗi khi tải danh sách ghi danh.');
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
 
-    loading,
+  useEffect(() => {
+    if (isAdmin) {
+      fetchEnrollments();
+    } else {
+      setLoading(false);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isAdmin]);
 
-    pagination,
+  const handleCancel = async (id: string | number) => {
+    try {
+      const updatedEnrollment = await adminEnrollmentApi.cancel(id);
+      messageApi.success(`Đã hủy ghi danh #${id} thành công.`);
+      // Phản ánh dữ liệu từ Backend xuống UI thay vì fetch lại toàn bộ
+      setEnrollments((prev) => 
+        prev.map((enr) => (enr.id === id ? updatedEnrollment : enr))
+      );
+    } catch (error: any) {
+      messageApi.error(error.response?.data?.message || 'Lỗi khi hủy ghi danh.');
+    }
+  };
 
-    filterValues,
-
-    handleFilterChange,
-
-    handleFilterSubmit,
-
-    handleFilterReset,
-
-    handleChangePage,
-
-    handleActive,
-
-    handleInActive,
-
-    handleDelete,
-
-    refetch,
-  } = useTable<Enrollment, EnrollmentFilterParams>({
-    fetchApi: getAll,
-    removeApi: remove,
-    activeApi: active,
-    inActiveApi: pause,
-  });
-
-  const sectionsEnrollmentForm: SectionForm[] = [
-    {
-      key: 'enrollment',
-      label: 'Thông tin đăng ký',
-      fields: enrollmentFormFields,
-    },
-    {
-      key: 'courseClass',
-      label: 'Thông tin lớp học',
-      fields: courseClassFormFields,
-      isDisabled: true,
-      isHidden: ({ dataForm }: { dataForm: any }) => dataForm && !dataForm.courseClassId,
-    },
-  ];
+  // Route Guard ngay tại Component
+  if (!loading && !isAdmin) {
+    return (
+      <div className="flex flex-col items-center justify-center p-20 text-center bg-gray-50 rounded-2xl border border-dashed border-gray-200 m-8">
+        <StopOutlined className="text-4xl text-red-500 mb-4" />
+        <Title level={3} className="text-gray-800 m-0">Truy cập bị từ chối</Title>
+        <Text className="text-gray-500 mt-2">Trang này chỉ dành cho Ban Quản Trị (ADMIN).</Text>
+      </div>
+    );
+  }
 
   const columns = [
     {
-      title: 'Học viên',
-      dataIndex: 'studentName',
+      title: 'Mã GD (ID)',
+      dataIndex: 'id',
+      key: 'id',
+      width: 100,
+      render: (id: string | number) => <Text strong>#{id}</Text>
     },
     {
-      title: 'Lớp học',
-      dataIndex: 'courseClassName',
-    },
-    {
-      title: 'Tên khóa học',
-      dataIndex: 'courseName',
+      title: 'Course ID',
+      dataIndex: 'courseId',
+      key: 'courseId',
+      width: 120,
+      render: (cId: string | number) => <Text type="secondary">Course: {cId}</Text>
     },
     {
       title: 'Trạng thái',
       dataIndex: 'status',
-      align: 'center' as const,
-      render: (_: any, record: Enrollment) => {
-        return <EnrollmentStatusTag status={record.status} statusText={record.statusText} />;
+      key: 'status',
+      width: 140,
+      render: (status: string) => {
+        let color = 'default';
+        let label = status;
+        switch (status) {
+          case 'ACTIVE': color = 'processing'; label = 'Đang học'; break;
+          case 'COMPLETED': color = 'success'; label = 'Hoàn thành'; break;
+          case 'CANCELLED': color = 'error'; label = 'Đã hủy'; break;
+          case 'EXPIRED': color = 'warning'; label = 'Hết hạn'; break;
+        }
+        return <Tag color={color} className="m-0 font-medium border-0">{label}</Tag>;
       },
     },
     {
-      title: 'Tác vụ',
-      align: 'center' as const,
-      render: (_: any, record: Enrollment) => {
+      title: 'Tiến độ học tập',
+      dataIndex: 'progressPercentage',
+      key: 'progressPercentage',
+      width: 250,
+      render: (progress: number, record: EnrollmentResponse) => (
+        <div className="flex flex-col">
+          <Progress percent={progress} size="small" status={progress === 100 ? 'success' : 'active'} className="m-0" />
+          <Text type="secondary" className="text-[11px] mt-1">
+            {record.lastAccessedLessonId ? `Lesson truy cập cuối: ${record.lastAccessedLessonId}` : 'Chưa có hoạt động'}
+          </Text>
+        </div>
+      ),
+    },
+    {
+      title: 'Ngày ghi danh',
+      dataIndex: 'enrolledAt',
+      key: 'enrolledAt',
+      render: (date: string) => date ? new Date(date).toLocaleString('vi-VN') : '-',
+    },
+    {
+      title: 'Ngày hoàn thành',
+      dataIndex: 'completedAt',
+      key: 'completedAt',
+      render: (date: string) => date ? <Text className="text-green-600 font-medium">{new Date(date).toLocaleString('vi-VN')}</Text> : '-',
+    },
+    {
+      title: 'Thao tác',
+      key: 'action',
+      width: 120,
+      render: (_: any, record: EnrollmentResponse) => {
+        const isCancelled = record.status === 'CANCELLED';
         return (
-          <ActionGroup<Enrollment>
-            record={record}
-            actions={[
-              {
-                show: () => true,
-                icon: <EyeOutlined />,
-                tooltip: 'Chi tiết',
-                onClick: openView,
-              },
-              {
-                show: (r) => r.status === EnrollmentStatus.ACTIVE,
-                icon: <EditOutlined />,
-                tooltip: 'Sửa',
-                onClick: openEdit,
-              },
-              {
-                show: (r) =>
-                  user?.role === USER_ROLE.STUDENT && r.status === EnrollmentStatus.ACTIVE,
-                icon: <EditOutlined />,
-                tooltip: 'Bảo lưu',
-                onClick: () => handleInActive(record.id),
-              },
-              {
-                show: (r) => r.status === EnrollmentStatus.CANCELLED,
-                icon: <CheckOutlined />,
-                tooltip: 'Đăng ký lại',
-                color: '#52c41a',
-                onClick: () => handleActive(record.id),
-                isPopconfirm: true,
-              },
-              {
-                show: (r) => r.status === EnrollmentStatus.ACTIVE,
-                icon: <DeleteOutlined />,
-                tooltip: 'Hủy đăng ký',
-                danger: true,
-                onClick: () => handleDelete(record.id),
-                isPopconfirm: true,
-              },
-            ]}
-          />
+          <Popconfirm
+            title="Xác nhận Hủy ghi danh?"
+            description={`Học viên sẽ bị ngừng Khóa học #${record.courseId}. Bạn có chắc chắn?`}
+            onConfirm={() => handleCancel(record.id)}
+            okText="Hủy ghi danh"
+            cancelText="Đóng"
+            okButtonProps={{ danger: true }}
+            disabled={isCancelled}
+            placement="left"
+          >
+            <Button 
+              danger 
+              size="small"
+              icon={<StopOutlined />} 
+              disabled={isCancelled}
+            >
+              Force Cancel
+            </Button>
+          </Popconfirm>
         );
       },
     },
   ];
 
   return (
-    <div className="flex flex-col h-full">
-      <PageHeader
-        title="Quản lý đăng ký"
-        subtitle="Danh sách đăng ký"
-        extra={
-          user?.role === USER_ROLE.ADMIN ? (
-            <Button type="primary" onClick={openCreate}>
-              Thêm đăng ký
-            </Button>
-          ) : null
-        }
-      />
-
-      <div className="mb-4">
-        <FilterTableCustom
-          dataFilters={enrollmentFilters}
-          values={filterValues}
-          onChange={handleFilterChange}
-          onReset={handleFilterReset}
-          onSubmit={handleFilterSubmit}
-        />
+    <div className="mx-auto max-w-7xl p-4 md:p-6 lg:p-8">
+      {contextHolder}
+      <div className="mb-6 flex flex-col gap-2">
+        <Title level={2} className="mb-0 text-2xl font-bold text-gray-800">Quản lý Ghi danh (Enrollments)</Title>
+        <Text className="text-gray-500">Giám sát tiến độ học tập và quản lý quyền truy cập khóa học của học viên.</Text>
       </div>
 
-      <TablePaginationCustom<Enrollment>
-        columns={columns}
-        data={enrollments}
-        loading={loading}
-        pagination={pagination}
-        onChangePage={handleChangePage}
-      />
-
-      <ModalFormCustom<Enrollment>
-        open={open}
-        title="Đăng ký"
-        mode={mode}
-        initialValues={selectedRecord}
-        disabled={mode === FormModalMode.VIEW}
-        onCancel={close}
-        onSuccess={refetch}
-        onSubmit={
-          mode === FormModalMode.CREATE ? create : (values) => update(selectedRecord!.id, values)
-        }
-        sections={sectionsEnrollmentForm}
-      />
+      <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+        <Table
+          dataSource={enrollments}
+          columns={columns}
+          rowKey="id"
+          loading={loading}
+          pagination={{
+            pageSize: 10,
+            showSizeChanger: true,
+            showTotal: (total) => <span className="font-medium text-gray-500">Tổng cộng {total} ghi danh</span>
+          }}
+          scroll={{ x: 1000 }}
+          locale={{ emptyText: 'Chưa có dữ liệu ghi danh nào trên hệ thống.' }}
+        />
+      </div>
     </div>
   );
 };
