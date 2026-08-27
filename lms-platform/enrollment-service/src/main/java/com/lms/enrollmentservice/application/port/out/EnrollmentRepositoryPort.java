@@ -1,5 +1,6 @@
 package com.lms.enrollmentservice.application.port.out;
 
+import com.lms.enrollmentservice.application.port.out.dto.CourseEnrollmentAggregation;
 import com.lms.enrollmentservice.domain.model.Enrollment;
 
 import java.util.List;
@@ -12,4 +13,5 @@ public interface EnrollmentRepositoryPort {
     boolean existsByUserIdAndCourseId(String userId, Long courseId);
     List<Enrollment> findByUserId(String userId);
     List<Enrollment> findAll();
+    List<CourseEnrollmentAggregation> getCourseEnrollmentAggregations();
 }

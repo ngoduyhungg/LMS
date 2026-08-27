@@ -1,5 +1,6 @@
 package com.lms.enrollmentservice.application.service;
 
+import com.lms.enrollmentservice.adapter.in.rest.dto.AdminCourseEnrollmentSummaryResponse;
 import com.lms.enrollmentservice.application.port.in.GetEnrollmentUseCase;
 import com.lms.enrollmentservice.application.port.in.ManageAdminEnrollmentUseCase;
 import com.lms.enrollmentservice.application.port.in.ManageEnrollmentUseCase;
@@ -9,6 +10,7 @@ import com.lms.enrollmentservice.application.port.out.CourseReferenceRepositoryP
 import com.lms.enrollmentservice.application.port.out.CourseSummaryPort;
 import com.lms.enrollmentservice.application.port.out.CourseValidationPort;
 import com.lms.enrollmentservice.application.port.out.EnrollmentRepositoryPort;
+import com.lms.enrollmentservice.application.port.out.dto.CourseEnrollmentAggregation;
 import com.lms.enrollmentservice.application.port.out.dto.CourseSummary;
 import com.lms.enrollmentservice.domain.enums.EnrollmentStatus;
 import com.lms.enrollmentservice.domain.model.CourseReference;
@@ -20,7 +22,10 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.ZonedDateTime;
+import java.util.Collections;
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -131,5 +136,36 @@ public class EnrollmentApplicationService implements ManageEnrollmentUseCase, Ge
         enrollment.cancel();
 
         return enrollmentRepository.save(enrollment);
+    }
+    @Override
+    public List<AdminCourseEnrollmentSummaryResponse> getCourseEnrollmentSummaries() {
+        // 1. Lấy dữ liệu đếm từ DB
+        List<CourseEnrollmentAggregation> aggregations = enrollmentRepository.getCourseEnrollmentAggregations();
+        if (aggregations.isEmpty()) {
+            return Collections.emptyList();
+        }
+
+        // 2. Tách list ID để gọi batch API
+        List<Long> courseIds = aggregations.stream()
+                .map(CourseEnrollmentAggregation::courseId)
+                .toList();
+
+        // 3. Gọi external service ĐÚNG 1 LẦN và đẩy vào Map để truy xuất O(1)
+        Map<Long, CourseSummary> courseSummaryMap = courseSummaryPort.getCourseSummaries(courseIds)
+                .stream()
+                .collect(Collectors.toMap(CourseSummary::courseId, summary -> summary));
+
+        // 4. Map DTO
+        return aggregations.stream().map(agg -> {
+            CourseSummary summary = courseSummaryMap.get(agg.courseId());
+            return AdminCourseEnrollmentSummaryResponse.builder()
+                    .courseId(agg.courseId())
+                    .enrollmentCount(agg.enrollmentCount())
+                    .activeCount(agg.activeCount())
+                    .completedCount(agg.completedCount())
+                    .courseTitle(summary != null ? summary.title() : null)
+                    .courseStatus(summary != null ? summary.status() : null)
+                    .build();
+        }).toList();
     }
 }
