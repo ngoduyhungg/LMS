@@ -12,6 +12,8 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Component;
 
+import java.util.Collection;
+import java.util.List;
 import java.util.Optional;
 
 @Component
@@ -38,5 +40,20 @@ public class UserPersistenceAdapter implements UserRepositoryPort {
             // Translate infrastructure exception to business exception
             throw new BusinessException(ErrorCode.USER_ALREADY_EXISTS, "User profile already exists or violates uniqueness constraints");
         }
+    }
+    @Override
+    public List<User> findByIds(Collection<UserId> userIds) {
+        if (userIds == null || userIds.isEmpty()) {
+            return List.of();
+        }
+
+        // Chuyển Collection<UserId> thành List<String> cho JPA
+        List<String> rawIds = userIds.stream()
+                .map(UserId::value)
+                .toList();
+
+        return repository.findAllById(rawIds).stream()
+                .map(mapper::toDomain)
+                .toList();
     }
 }

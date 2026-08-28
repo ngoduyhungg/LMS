@@ -15,6 +15,8 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.dao.DataIntegrityViolationException;
 
+import java.util.List;
+
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
@@ -132,5 +134,27 @@ class UserPersistenceAdapterTest {
 
         verify(mapper).toEntity(domainUser);
         verify(repository, never()).saveAndFlush(any());
+    }
+    @Test
+    @DisplayName("findByIds - Gọi repository.findAllById và map sang Domain")
+    void findByIds_CallsRepositoryAndMapsToDomain() {
+        // Given
+        List<UserId> userIds = List.of(new UserId("uuid-1"), new UserId("uuid-2"));
+        List<String> rawIds = List.of("uuid-1", "uuid-2");
+
+        UserJpaEntity entity1 = new UserJpaEntity();
+        User domain1 = User.builder().id(new UserId("uuid-1")).build();
+
+        when(repository.findAllById(rawIds)).thenReturn(List.of(entity1));
+        when(mapper.toDomain(entity1)).thenReturn(domain1);
+
+        // When
+        List<User> result = adapter.findByIds(userIds);
+
+        // Then
+        assertEquals(1, result.size());
+        assertEquals("uuid-1", result.getFirst().getId().value());
+        // Verify method findAllById is called EXACTLY once (No N+1 loop)
+        verify(repository, times(1)).findAllById(rawIds);
     }
 }
