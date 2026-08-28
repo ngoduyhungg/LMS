@@ -14,7 +14,9 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
@@ -206,5 +208,30 @@ class UserApplicationServiceTest {
         RuntimeException ex = assertThrows(RuntimeException.class, () -> userApplicationService.syncProfile(command));
 
         assertEquals("Database down", ex.getMessage());
+    }
+    @Test
+    @DisplayName("12. getBatchInternalProfiles - Trả về danh sách khi truyền vào Set IDs hợp lệ")
+    void getBatchInternalProfiles_ReturnsList_WhenIdsValid() {
+        Set<UserId> userIds = Set.of(new UserId("uuid-1"), new UserId("uuid-2"));
+        List<User> mockUsers = List.of(
+                User.builder().id(new UserId("uuid-1")).email("student1@mail.com").build(),
+                User.builder().id(new UserId("uuid-2")).email("student2@mail.com").build()
+        );
+
+        when(userRepositoryPort.findByIds(userIds)).thenReturn(mockUsers);
+
+        List<User> result = userApplicationService.getBatchInternalProfiles(userIds);
+
+        assertEquals(2, result.size());
+        verify(userRepositoryPort, times(1)).findByIds(userIds);
+    }
+
+    @Test
+    @DisplayName("13. getBatchInternalProfiles - Trả về list rỗng khi đầu vào rỗng (không gọi DB)")
+    void getBatchInternalProfiles_ReturnsEmptyList_WhenInputEmpty() {
+        List<User> result = userApplicationService.getBatchInternalProfiles(Set.of());
+
+        assertTrue(result.isEmpty());
+        verify(userRepositoryPort, never()).findByIds(any());
     }
 }

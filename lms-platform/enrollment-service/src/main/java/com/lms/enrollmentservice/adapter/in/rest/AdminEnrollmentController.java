@@ -1,5 +1,6 @@
 package com.lms.enrollmentservice.adapter.in.rest;
 
+import com.lms.enrollmentservice.adapter.in.rest.dto.AdminCourseEnrollmentSummaryResponse;
 import com.lms.enrollmentservice.adapter.in.rest.dto.EnrollmentResponse;
 import com.lms.enrollmentservice.adapter.in.rest.mapper.EnrollmentRestMapper;
 import com.lms.enrollmentservice.application.port.in.ManageAdminEnrollmentUseCase;
@@ -31,5 +32,10 @@ public class AdminEnrollmentController {
     public ResponseEntity<EnrollmentResponse> forceCancelEnrollment(@PathVariable Long id) {
         Enrollment canceledEnrollment = manageAdminEnrollmentUseCase.forceCancelEnrollment(id);
         return ResponseEntity.ok(restMapper.toResponse(canceledEnrollment));
+    }
+    @GetMapping("/courses/summary")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<List<AdminCourseEnrollmentSummaryResponse>> getCourseEnrollmentSummaries() {
+        return ResponseEntity.ok(manageAdminEnrollmentUseCase.getCourseEnrollmentSummaries());
     }
 }

@@ -1,5 +1,6 @@
 package com.lms.userservice.adapter.in.rest;
 
+import com.lms.userservice.adapter.in.rest.dto.BatchInternalUserProfileRequest;
 import com.lms.userservice.adapter.in.rest.dto.InternalUserProfileResponse;
 import com.lms.userservice.adapter.in.rest.mapper.UserRestMapper;
 import com.lms.userservice.application.port.in.GetInternalUserProfileUseCase;
@@ -11,6 +12,9 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+
+import java.util.List;
+import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -63,5 +67,32 @@ class InternalUserControllerTest {
         // Verify interactions
         verify(getUseCase, times(1)).getInternalProfile(any(UserId.class));
         verify(mapper, times(1)).toInternalProfileResponse(mockUser);
+    }
+    @Test
+    @DisplayName("getBatchProfiles - Luồng Controller hoạt động chuẩn xác cho list IDs")
+    void getBatchProfiles_ReturnsResponseList() {
+        // Given
+        Set<String> requestIds = Set.of("uuid-1", "uuid-2");
+        BatchInternalUserProfileRequest request = new BatchInternalUserProfileRequest(requestIds);
+
+        User mockUser = User.builder().id(new UserId("uuid-1")).email("student1@mail.com").build();
+        InternalUserProfileResponse mockResponse = InternalUserProfileResponse.builder()
+                .userId("uuid-1")
+                .email("student1@mail.com")
+                .build();
+
+        when(getUseCase.getBatchInternalProfiles(anySet())).thenReturn(List.of(mockUser));
+        when(mapper.toInternalProfileResponses(List.of(mockUser))).thenReturn(List.of(mockResponse));
+
+        // When
+        List<InternalUserProfileResponse> result = controller.getBatchProfiles(request);
+
+        // Then
+        assertEquals(1, result.size());
+        assertEquals("uuid-1", result.getFirst().getUserId());
+        assertEquals("student1@mail.com", result.getFirst().getEmail());
+
+        verify(getUseCase, times(1)).getBatchInternalProfiles(anySet());
+        verify(mapper, times(1)).toInternalProfileResponses(List.of(mockUser));
     }
 }

@@ -4,6 +4,7 @@ import com.lms.enrollmentservice.adapter.out.persistence.entity.EnrollmentJpaEnt
 import com.lms.enrollmentservice.adapter.out.persistence.mapper.EnrollmentPersistenceMapper;
 import com.lms.enrollmentservice.adapter.out.persistence.repository.EnrollmentJpaRepository;
 import com.lms.enrollmentservice.application.port.out.EnrollmentRepositoryPort;
+import com.lms.enrollmentservice.application.port.out.dto.CourseEnrollmentAggregation;
 import com.lms.enrollmentservice.domain.model.Enrollment;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
@@ -50,6 +51,17 @@ public class EnrollmentPersistenceAdapter implements EnrollmentRepositoryPort {
     public List<Enrollment> findAll() {
         return enrollmentJpaRepository.findAll().stream()
                 .map(enrollmentMapper::toDomain)
+                .toList();
+    }
+    @Override
+    public List<CourseEnrollmentAggregation> getCourseEnrollmentAggregations() {
+        return enrollmentJpaRepository.aggregateCourseEnrollments().stream()
+                .map(proj -> new CourseEnrollmentAggregation(
+                        proj.getCourseId(),
+                        proj.getEnrollmentCount(),
+                        proj.getActiveCount(),
+                        proj.getCompletedCount()
+                ))
                 .toList();
     }
 }

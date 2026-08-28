@@ -7,6 +7,8 @@ import com.lms.userservice.application.port.in.command.SyncUserCommand;
 import com.lms.userservice.domain.model.User;
 import org.springframework.stereotype.Component;
 
+import java.util.List;
+
 @Component
 public class UserRestMapper {
 
@@ -40,5 +42,13 @@ public class UserRestMapper {
                 .phoneNumber(user.getPhoneNumber())
                 .status(user.getStatus().name())
                 .build();
+    }
+    public List<InternalUserProfileResponse> toInternalProfileResponses(List<User> users) {
+        if (users == null || users.isEmpty()) {
+            return List.of();
+        }
+        return users.stream()
+                .map(this::toInternalProfileResponse)
+                .toList();
     }
 }

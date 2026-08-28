@@ -13,6 +13,9 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.List;
+import java.util.Set;
+
 @Service
 @RequiredArgsConstructor
 public class UserApplicationService implements GetInternalUserProfileUseCase, SyncUserProfileUseCase {
@@ -68,5 +71,13 @@ public class UserApplicationService implements GetInternalUserProfileUseCase, Sy
                         throw ex; // Nếu là lỗi business khác, propagate
                     }
                 });
+    }
+    @Override
+    @Transactional(readOnly = true)
+    public List<User> getBatchInternalProfiles(Set<UserId> userIds) {
+        if (userIds == null || userIds.isEmpty()) {
+            return List.of();
+        }
+        return userRepositoryPort.findByIds(userIds);
     }
 }
