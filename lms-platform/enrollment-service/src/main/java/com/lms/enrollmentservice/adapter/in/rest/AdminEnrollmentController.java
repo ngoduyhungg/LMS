@@ -1,7 +1,9 @@
 package com.lms.enrollmentservice.adapter.in.rest;
 
 import com.lms.enrollmentservice.adapter.in.rest.dto.AdminCourseEnrollmentSummaryResponse;
+import com.lms.enrollmentservice.adapter.in.rest.dto.AdminStudentEnrollmentResponse;
 import com.lms.enrollmentservice.adapter.in.rest.dto.EnrollmentResponse;
+import com.lms.enrollmentservice.adapter.in.rest.dto.PageResponse;
 import com.lms.enrollmentservice.adapter.in.rest.mapper.EnrollmentRestMapper;
 import com.lms.enrollmentservice.application.port.in.ManageAdminEnrollmentUseCase;
 import com.lms.enrollmentservice.domain.model.Enrollment;
@@ -37,5 +39,13 @@ public class AdminEnrollmentController {
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<List<AdminCourseEnrollmentSummaryResponse>> getCourseEnrollmentSummaries() {
         return ResponseEntity.ok(manageAdminEnrollmentUseCase.getCourseEnrollmentSummaries());
+    }
+    @GetMapping("/courses/{courseId}")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<PageResponse<AdminStudentEnrollmentResponse>> getStudentEnrollmentsByCourse(
+            @PathVariable Long courseId,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size) {
+        return ResponseEntity.ok(manageAdminEnrollmentUseCase.getStudentEnrollmentsByCourse(courseId, page, size));
     }
 }

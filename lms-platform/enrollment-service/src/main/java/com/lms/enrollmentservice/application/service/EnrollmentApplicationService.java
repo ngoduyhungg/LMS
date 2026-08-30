@@ -1,23 +1,25 @@
 package com.lms.enrollmentservice.application.service;
 
 import com.lms.enrollmentservice.adapter.in.rest.dto.AdminCourseEnrollmentSummaryResponse;
+import com.lms.enrollmentservice.adapter.in.rest.dto.AdminStudentEnrollmentResponse;
+import com.lms.enrollmentservice.adapter.in.rest.dto.PageResponse;
 import com.lms.enrollmentservice.application.port.in.GetEnrollmentUseCase;
 import com.lms.enrollmentservice.application.port.in.ManageAdminEnrollmentUseCase;
 import com.lms.enrollmentservice.application.port.in.ManageEnrollmentUseCase;
 import com.lms.enrollmentservice.application.port.in.command.EnrollCommand;
 import com.lms.enrollmentservice.application.port.in.command.TrackProgressCommand;
-import com.lms.enrollmentservice.application.port.out.CourseReferenceRepositoryPort;
-import com.lms.enrollmentservice.application.port.out.CourseSummaryPort;
-import com.lms.enrollmentservice.application.port.out.CourseValidationPort;
-import com.lms.enrollmentservice.application.port.out.EnrollmentRepositoryPort;
+import com.lms.enrollmentservice.application.port.out.*;
 import com.lms.enrollmentservice.application.port.out.dto.CourseEnrollmentAggregation;
 import com.lms.enrollmentservice.application.port.out.dto.CourseSummary;
+import com.lms.enrollmentservice.application.port.out.dto.UserProfile;
 import com.lms.enrollmentservice.domain.enums.EnrollmentStatus;
 import com.lms.enrollmentservice.domain.model.CourseReference;
 import com.lms.enrollmentservice.domain.model.Enrollment;
 import com.lms.shared.enums.ErrorCode;
 import com.lms.shared.exception.BusinessException;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -38,6 +40,7 @@ public class EnrollmentApplicationService implements ManageEnrollmentUseCase, Ge
 
     private final CourseSummaryPort courseSummaryPort;
     private final CourseValidationPort courseValidationPort;
+    private final UserProfilePort userProfilePort;
 
     @Override
     public Enrollment enrollUser(EnrollCommand command) {
@@ -167,5 +170,42 @@ public class EnrollmentApplicationService implements ManageEnrollmentUseCase, Ge
                     .courseStatus(summary != null ? summary.status() : null)
                     .build();
         }).toList();
+    }
+    @Override
+    public PageResponse<AdminStudentEnrollmentResponse> getStudentEnrollmentsByCourse(Long courseId, int page, int size) {
+        // 1. Lấy dữ liệu phân trang từ DB
+        Page<Enrollment> enrollmentPage = enrollmentRepository.findByCourseId(courseId, PageRequest.of(page, size));
+
+        if (enrollmentPage.isEmpty()) {
+            return new PageResponse<>(Collections.emptyList(), page, size, enrollmentPage.getTotalElements());
+        }
+
+        // 2. Gom userIds duy nhất
+        List<String> userIds = enrollmentPage.getContent().stream()
+                .map(Enrollment::getUserId) // Hoặc userId() tùy định nghĩa model của bạn
+                .distinct()
+                .toList();
+
+        // 3. Gọi batch API lấy thông tin người dùng 1 lần
+        Map<String, UserProfile> userProfileMap = userProfilePort.getProfiles(userIds).stream()
+                .collect(Collectors.toMap(UserProfile::userId, p -> p));
+
+        // 4. Map kết quả
+        List<AdminStudentEnrollmentResponse> items = enrollmentPage.getContent().stream().map(enrollment -> {
+            UserProfile profile = userProfileMap.get(enrollment.getUserId());
+            return AdminStudentEnrollmentResponse.builder()
+                    .enrollmentId(enrollment.getId()) // Hoặc id()
+                    .studentId(enrollment.getUserId())
+                    .studentName(profile != null ? profile.fullName() : null)
+                    .studentEmail(profile != null ? profile.email() : null)
+                    .status(enrollment.getStatus() != null ? enrollment.getStatus().name() : null)
+                    // Các trường tiến độ dưới đây phụ thuộc vào method trong Enrollment của bạn
+                    // Nếu không có trực tiếp, bạn có thể truyền null hoặc 0.0 tạm thời
+                    .enrolledAt(enrollment.getEnrolledAt())
+                    .completedAt(enrollment.getCompletedAt())
+                    .build();
+        }).toList();
+
+        return new PageResponse<>(items, page, size, enrollmentPage.getTotalElements());
     }
 }
