@@ -7,6 +7,8 @@ import com.lms.enrollmentservice.application.port.out.EnrollmentRepositoryPort;
 import com.lms.enrollmentservice.application.port.out.dto.CourseEnrollmentAggregation;
 import com.lms.enrollmentservice.domain.model.Enrollment;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Component;
 
 import java.util.List;
@@ -63,5 +65,10 @@ public class EnrollmentPersistenceAdapter implements EnrollmentRepositoryPort {
                         proj.getCompletedCount()
                 ))
                 .toList();
+    }
+    @Override
+    public Page<Enrollment> findByCourseId(Long courseId, Pageable pageable) {
+        return enrollmentJpaRepository.findByCourseId(courseId, pageable)
+                .map(enrollmentMapper::toDomain);
     }
 }
