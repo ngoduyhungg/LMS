@@ -2,6 +2,8 @@ package com.lms.enrollmentservice.adapter.in.rest.dto;
 
 import lombok.Builder;
 import lombok.Data;
+
+import java.math.BigDecimal;
 import java.time.ZonedDateTime;
 
 @Data
@@ -12,7 +14,7 @@ public class AdminStudentEnrollmentResponse {
     private String studentName;
     private String studentEmail;
     private String status;
-    private Double progressPercentage;
+    private BigDecimal progressPercentage;
     private Long lastAccessedLessonId;
     private ZonedDateTime enrolledAt;
     private ZonedDateTime completedAt;
