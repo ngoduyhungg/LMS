@@ -1,8 +1,9 @@
 import React, { useEffect, useState } from 'react';
-import { Typography, Table, Tag, Progress, Button, Popconfirm, message } from 'antd';
-import { StopOutlined } from '@ant-design/icons';
+import { Typography, Table, Tag, Button, message } from 'antd';
+import { StopOutlined, EyeOutlined } from '@ant-design/icons';
+import { useNavigate } from 'react-router-dom';
 import { adminEnrollmentApi } from '../api/enrollment-api';
-import type { EnrollmentResponse } from '../types/enrollment-type';
+import type { CourseEnrollmentSummary } from '../types/enrollment-type';
 import { useAppSelector } from '@/app/redux/hooks';
 import { USER_ROLE } from '@/features/users/types/user-role-type';
 
@@ -10,22 +11,24 @@ const { Title, Text } = Typography;
 
 const EnrollmentPage: React.FC = () => {
   const { user } = useAppSelector((state) => state.auth);
-  const [enrollments, setEnrollments] = useState<EnrollmentResponse[]>([]);
+  const navigate = useNavigate();
+  const [summaries, setSummaries] = useState<CourseEnrollmentSummary[]>([]);
   const [loading, setLoading] = useState(true);
   const [messageApi, contextHolder] = message.useMessage();
 
   const isAdmin = user?.role === USER_ROLE.ADMIN;
 
-  const fetchEnrollments = async () => {
+  const fetchSummaries = async () => {
     try {
       setLoading(true);
-      const data = await adminEnrollmentApi.getAll();
-      setEnrollments(Array.isArray(data) ? data : []);
+      // Gọi API LEVEL 1: Lấy danh sách thống kê
+      const data = await adminEnrollmentApi.getCourseSummaries();
+      setSummaries(Array.isArray(data) ? data : []);
     } catch (error: any) {
       if (error.response?.status === 403) {
         messageApi.error('Bạn không có quyền quản lý ghi danh.');
       } else {
-        messageApi.error(error.response?.data?.message || 'Lỗi khi tải danh sách ghi danh.');
+        messageApi.error(error.response?.data?.message || 'Lỗi khi tải thống kê ghi danh.');
       }
     } finally {
       setLoading(false);
@@ -34,27 +37,13 @@ const EnrollmentPage: React.FC = () => {
 
   useEffect(() => {
     if (isAdmin) {
-      fetchEnrollments();
+      fetchSummaries();
     } else {
       setLoading(false);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isAdmin]);
 
-  const handleCancel = async (id: string | number) => {
-    try {
-      const updatedEnrollment = await adminEnrollmentApi.cancel(id);
-      messageApi.success(`Đã hủy ghi danh #${id} thành công.`);
-      // Phản ánh dữ liệu từ Backend xuống UI thay vì fetch lại toàn bộ
-      setEnrollments((prev) => 
-        prev.map((enr) => (enr.id === id ? updatedEnrollment : enr))
-      );
-    } catch (error: any) {
-      messageApi.error(error.response?.data?.message || 'Lỗi khi hủy ghi danh.');
-    }
-  };
-
-  // Route Guard ngay tại Component
   if (!loading && !isAdmin) {
     return (
       <div className="flex flex-col items-center justify-center p-20 text-center bg-gray-50 rounded-2xl border border-dashed border-gray-200 m-8">
@@ -67,90 +56,68 @@ const EnrollmentPage: React.FC = () => {
 
   const columns = [
     {
-      title: 'Mã GD (ID)',
-      dataIndex: 'id',
-      key: 'id',
+      title: 'Mã KH',
+      dataIndex: 'courseId',
+      key: 'courseId',
       width: 100,
       render: (id: string | number) => <Text strong>#{id}</Text>
     },
     {
-      title: 'Course ID',
-      dataIndex: 'courseId',
-      key: 'courseId',
+      title: 'Tên Khóa học',
+      dataIndex: 'courseTitle',
+      key: 'courseTitle',
+      render: (title: string) => <Text className="font-medium text-gray-800">{title}</Text>
+    },
+    {
+      title: 'Trạng thái KH',
+      dataIndex: 'courseStatus',
+      key: 'courseStatus',
+      width: 150,
+      render: (status: string) => (
+        <Tag color={status === 'PUBLISHED' ? 'success' : 'default'} className="border-0">
+          {status}
+        </Tag>
+      )
+    },
+    {
+      title: 'Tổng Ghi danh',
+      dataIndex: 'enrollmentCount',
+      key: 'enrollmentCount',
+      align: 'center' as const,
+      width: 150,
+      render: (count: number) => <Tag color="blue" className="text-sm px-3 py-1 font-bold rounded-full">{count}</Tag>
+    },
+    {
+      title: 'Đang học',
+      dataIndex: 'activeCount',
+      key: 'activeCount',
+      align: 'center' as const,
       width: 120,
-      render: (cId: string | number) => <Text type="secondary">Course: {cId}</Text>
+      render: (count: number) => <Text className="text-blue-600 font-medium">{count}</Text>
     },
     {
-      title: 'Trạng thái',
-      dataIndex: 'status',
-      key: 'status',
-      width: 140,
-      render: (status: string) => {
-        let color = 'default';
-        let label = status;
-        switch (status) {
-          case 'ACTIVE': color = 'processing'; label = 'Đang học'; break;
-          case 'COMPLETED': color = 'success'; label = 'Hoàn thành'; break;
-          case 'CANCELLED': color = 'error'; label = 'Đã hủy'; break;
-          case 'EXPIRED': color = 'warning'; label = 'Hết hạn'; break;
-        }
-        return <Tag color={color} className="m-0 font-medium border-0">{label}</Tag>;
-      },
-    },
-    {
-      title: 'Tiến độ học tập',
-      dataIndex: 'progressPercentage',
-      key: 'progressPercentage',
-      width: 250,
-      render: (progress: number, record: EnrollmentResponse) => (
-        <div className="flex flex-col">
-          <Progress percent={progress} size="small" status={progress === 100 ? 'success' : 'active'} className="m-0" />
-          <Text type="secondary" className="text-[11px] mt-1">
-            {record.lastAccessedLessonId ? `Lesson truy cập cuối: ${record.lastAccessedLessonId}` : 'Chưa có hoạt động'}
-          </Text>
-        </div>
-      ),
-    },
-    {
-      title: 'Ngày ghi danh',
-      dataIndex: 'enrolledAt',
-      key: 'enrolledAt',
-      render: (date: string) => date ? new Date(date).toLocaleString('vi-VN') : '-',
-    },
-    {
-      title: 'Ngày hoàn thành',
-      dataIndex: 'completedAt',
-      key: 'completedAt',
-      render: (date: string) => date ? <Text className="text-green-600 font-medium">{new Date(date).toLocaleString('vi-VN')}</Text> : '-',
+      title: 'Đã hoàn thành',
+      dataIndex: 'completedCount',
+      key: 'completedCount',
+      align: 'center' as const,
+      width: 150,
+      render: (count: number) => <Text className="text-green-600 font-medium">{count}</Text>
     },
     {
       title: 'Thao tác',
       key: 'action',
-      width: 120,
-      render: (_: any, record: EnrollmentResponse) => {
-        const isCancelled = record.status === 'CANCELLED';
-        return (
-          <Popconfirm
-            title="Xác nhận Hủy ghi danh?"
-            description={`Học viên sẽ bị ngừng Khóa học #${record.courseId}. Bạn có chắc chắn?`}
-            onConfirm={() => handleCancel(record.id)}
-            okText="Hủy ghi danh"
-            cancelText="Đóng"
-            okButtonProps={{ danger: true }}
-            disabled={isCancelled}
-            placement="left"
-          >
-            <Button 
-              danger 
-              size="small"
-              icon={<StopOutlined />} 
-              disabled={isCancelled}
-            >
-              Force Cancel
-            </Button>
-          </Popconfirm>
-        );
-      },
+      width: 150,
+      align: 'center' as const,
+      render: (_: any, record: CourseEnrollmentSummary) => (
+        <Button 
+          type="primary" 
+          icon={<EyeOutlined />} 
+          onClick={() => navigate(`/enrollments/courses/${record.courseId}`)}
+          className="bg-gray-800 hover:bg-gray-700"
+        >
+          Xem Học viên
+        </Button>
+      ),
     },
   ];
 
@@ -158,23 +125,19 @@ const EnrollmentPage: React.FC = () => {
     <div className="mx-auto max-w-7xl p-4 md:p-6 lg:p-8">
       {contextHolder}
       <div className="mb-6 flex flex-col gap-2">
-        <Title level={2} className="mb-0 text-2xl font-bold text-gray-800">Quản lý Ghi danh (Enrollments)</Title>
-        <Text className="text-gray-500">Giám sát tiến độ học tập và quản lý quyền truy cập khóa học của học viên.</Text>
+        <Title level={2} className="mb-0 text-2xl font-bold text-gray-800">Quản lý Ghi danh (Tổng quan)</Title>
+        <Text className="text-gray-500">Thống kê số lượng học viên ghi danh theo từng khóa học.</Text>
       </div>
 
       <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
         <Table
-          dataSource={enrollments}
+          dataSource={summaries}
           columns={columns}
-          rowKey="id"
+          rowKey="courseId"
           loading={loading}
-          pagination={{
-            pageSize: 10,
-            showSizeChanger: true,
-            showTotal: (total) => <span className="font-medium text-gray-500">Tổng cộng {total} ghi danh</span>
-          }}
+          pagination={{ pageSize: 10 }}
           scroll={{ x: 1000 }}
-          locale={{ emptyText: 'Chưa có dữ liệu ghi danh nào trên hệ thống.' }}
+          locale={{ emptyText: 'Chưa có dữ liệu thống kê ghi danh.' }}
         />
       </div>
     </div>

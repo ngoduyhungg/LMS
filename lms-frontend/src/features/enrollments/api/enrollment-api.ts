@@ -1,8 +1,8 @@
 import { axiosClient } from '@/shared/lib/axios';
 import type { EnrollmentFilterParams } from '../types/enrollment-filter-params-type';
-import type { EnrollmentResponse } from '../types/enrollment-type';
+import type { EnrollmentResponse, CourseEnrollmentSummary, StudentEnrollmentDetail } from '../types/enrollment-type';
 
-const API_URL_PREFIX = '/api/enrollments'; // Fix legacy URL prefix if needed, ensuring it targets /api/enrollments
+const API_URL_PREFIX = '/api/enrollments';
 
 export const enrollmentRoleAdminApi = {
   getAll: async (params: EnrollmentFilterParams) => {
@@ -48,12 +48,12 @@ export const enrollmentRoleStudentApi = {
 export const studentLearningApi = {
   enroll: async (courseId: string | number): Promise<EnrollmentResponse> => {
     const res = await axiosClient.post('/api/enrollments', { courseId: Number(courseId) });
-    return res.data; // Raw DTO, no wrapper
+    return res.data;
   },
 
   getMyEnrollments: async (): Promise<EnrollmentResponse[]> => {
     const res = await axiosClient.get('/api/enrollments');
-    return res.data; // List<EnrollmentResponse>
+    return res.data;
   },
 
   getEnrollmentDetail: async (courseId: string | number): Promise<EnrollmentResponse> => {
@@ -68,18 +68,26 @@ export const studentLearningApi = {
     const res = await axiosClient.put(`/api/enrollments/courses/${courseId}/progress`, payload);
     return res.data;
   }
-  
 };
+
 // ==========================================
 // UI-5 ADMIN ENROLLMENT MANAGEMENT CONTRACT
 // ==========================================
 export const adminEnrollmentApi = {
-  getAll: async (): Promise<EnrollmentResponse[]> => {
-    const res = await axiosClient.get('/api/admin/enrollments');
+  // LEVEL 1: Lấy danh sách thống kê Ghi danh theo từng Khóa học
+  getCourseSummaries: async (): Promise<CourseEnrollmentSummary[]> => {
+    const res = await axiosClient.get('/api/admin/enrollments/courses/summary');
     return res.data;
   },
-  cancel: async (id: string | number): Promise<EnrollmentResponse> => {
-    // Contract đã verify: Payload body không cần thiết, Backend tự chuyển status = CANCELLED
+
+  // LEVEL 2: Lấy danh sách Học viên của 1 Khóa học (Có hỗ trợ phân trang)
+  getCourseEnrollments: async (courseId: string | number, params?: { page?: number; size?: number }): Promise<any> => {
+    const res = await axiosClient.get(`/api/admin/enrollments/courses/${courseId}`, { params });
+    return res.data;
+  },
+
+  // FORCE CANCEL
+  cancel: async (id: string | number): Promise<StudentEnrollmentDetail> => {
     const res = await axiosClient.put(`/api/admin/enrollments/${id}/cancel`);
     return res.data;
   }

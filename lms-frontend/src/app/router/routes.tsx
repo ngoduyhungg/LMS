@@ -31,6 +31,9 @@ import MyLearningPage from '@/features/enrollments/pages/MyLearningPage';
 import LearningPage from '@/features/learning/pages/LearningPage';
 import MyCertificatesPage from '@/features/certificates/pages/MyCertificatesPage';
 
+// UI-5 ADMIN ENROLLMENT IMPORTS
+import CourseEnrollmentDetailPage from '@/features/enrollments/pages/CourseEnrollmentDetailPage';
+
 export const router = createBrowserRouter([
   /******************** AUTH *********************/
   {
@@ -76,13 +79,16 @@ export const router = createBrowserRouter([
           { path: 'course-management/:id', element: <CourseOverviewPage /> },
           { path: 'course-management/:id/edit', element: <CourseStudioPage /> },
           
+          /* --- UI-5: ADMIN ENROLLMENT MANAGEMENT --- */
+          { path: 'enrollments', element: <EnrollmentPage /> },
+          { path: 'enrollments/courses/:courseId', element: <CourseEnrollmentDetailPage /> },
+          
           /* --- OTHER DOMAINS --- */
           { path: 'rooms', element: <RoomPage /> },
           { path: 'schedules', element: <SchedulePage /> },
           { path: 'course-classes', element: <CourseClassPage /> },
           { path: 'course-class-sessions', element: <CourseClassSessionPage /> },
           { path: 'calendar', element: <CourseClassCalendarPage /> },
-          { path: 'enrollments', element: <EnrollmentPage /> },
           { path: 'leave-requests', element: <LeaveRequestPage /> },
           { path: 'tuition-invoices', element: <TuitionInvoicePage /> },
           { path: 'payments', element: <PaymentPage /> },

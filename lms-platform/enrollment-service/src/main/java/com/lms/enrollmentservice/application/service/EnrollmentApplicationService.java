@@ -23,6 +23,7 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
 import java.time.ZonedDateTime;
 import java.util.Collections;
 import java.util.List;
@@ -192,15 +193,18 @@ public class EnrollmentApplicationService implements ManageEnrollmentUseCase, Ge
 
         // 4. Map kết quả
         List<AdminStudentEnrollmentResponse> items = enrollmentPage.getContent().stream().map(enrollment -> {
+            BigDecimal actualProgress = (enrollment.getStatus() == EnrollmentStatus.COMPLETED)
+                    ? BigDecimal.valueOf(100)
+                    : enrollment.getProgressPercentage();
             UserProfile profile = userProfileMap.get(enrollment.getUserId());
             return AdminStudentEnrollmentResponse.builder()
-                    .enrollmentId(enrollment.getId()) // Hoặc id()
+                    .enrollmentId(enrollment.getId())
                     .studentId(enrollment.getUserId())
                     .studentName(profile != null ? profile.fullName() : null)
                     .studentEmail(profile != null ? profile.email() : null)
                     .status(enrollment.getStatus() != null ? enrollment.getStatus().name() : null)
-                    // Các trường tiến độ dưới đây phụ thuộc vào method trong Enrollment của bạn
-                    // Nếu không có trực tiếp, bạn có thể truyền null hoặc 0.0 tạm thời
+                    .progressPercentage(actualProgress)
+                    .lastAccessedLessonId(enrollment.getLastAccessedLessonId())
                     .enrolledAt(enrollment.getEnrolledAt())
                     .completedAt(enrollment.getCompletedAt())
                     .build();
