@@ -16,27 +16,24 @@ export interface EnrollmentResponse {
 }
 
 // ==========================================
-// UI-5 ADMIN DTOs (TỪ BACKEND HOTFIX)
+// UI-5 ADMIN DTOs
 // ==========================================
-
-// LEVEL 1: Thống kê tổng quan Khóa học
 export interface CourseEnrollmentSummary {
   courseId: string | number;
-  courseTitle: string;
-  courseStatus: string;
+  courseTitle: string | null;
+  courseStatus: string | null;
   enrollmentCount: number;
   activeCount: number;
   completedCount: number;
 }
 
-// LEVEL 2: Chi tiết Ghi danh của Học viên
 export interface StudentEnrollmentDetail {
   enrollmentId: string | number;
   studentId: string | number;
-  studentName: string;
-  studentEmail: string;
+  studentName: string | null;
+  studentEmail: string | null;
   status: 'ACTIVE' | 'COMPLETED' | 'CANCELLED' | 'EXPIRED';
-  progressPercentage: number;
+  progressPercentage: number | null; // HOTFIX: Cho phép null từ backend
   lastAccessedLessonId?: string | number | null;
   enrolledAt: string;
   completedAt?: string | null;
