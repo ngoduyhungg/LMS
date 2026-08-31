@@ -14,19 +14,21 @@ const CourseEnrollmentDetailPage: React.FC = () => {
 
   const [enrollments, setEnrollments] = useState<StudentEnrollmentDetail[]>([]);
   const [loading, setLoading] = useState(true);
+  const [totalRecords, setTotalRecords] = useState(0);
 
   const fetchDetail = async () => {
     if (!courseId) return;
     try {
       setLoading(true);
-      // HOTFIX: Truyền rõ tham số page và size theo đúng Contract của Backend
       const res = await adminEnrollmentApi.getCourseEnrollments(courseId, { page: 0, size: 20 });
       
-      const data = Array.isArray(res) ? res : (res.content || res.data || []);
+      // HOTFIX: Lấy đúng thuộc tính "items" từ Backend
+      const data = Array.isArray(res) ? res : (res.items || res.content || res.data || []);
       setEnrollments(data);
+      setTotalRecords(res.total || data.length);
     } catch (error: any) {
-      messageApi.destroy(); // Chặn lỗi double toast
-      messageApi.error('Lỗi khi tải danh sách học viên. (Server 500)');
+      messageApi.destroy();
+      messageApi.error('Lỗi khi tải danh sách học viên.');
     } finally {
       setLoading(false);
     }
@@ -64,7 +66,7 @@ const CourseEnrollmentDetailPage: React.FC = () => {
       key: 'student',
       render: (_: any, record: StudentEnrollmentDetail) => (
         <div className="flex flex-col">
-          <Text className="font-semibold text-gray-800">{record.studentName || 'Chưa cập nhật'}</Text>
+          <Text className="font-semibold text-gray-800">{record.studentName || 'Chưa cập nhật tên'}</Text>
           <Text type="secondary" className="text-xs">{record.studentEmail || `ID: ${record.studentId}`}</Text>
         </div>
       )
@@ -91,9 +93,12 @@ const CourseEnrollmentDetailPage: React.FC = () => {
       dataIndex: 'progressPercentage',
       key: 'progressPercentage',
       width: 200,
-      render: (progress: number) => (
-        <Progress percent={progress} size="small" status={progress === 100 ? 'success' : 'active'} className="m-0" />
-      ),
+      render: (progress: number | null) => {
+        const safeProgress = progress || 0; 
+        return (
+          <Progress percent={safeProgress} size="small" status={safeProgress === 100 ? 'success' : 'active'} className="m-0" />
+        );
+      },
     },
     {
       title: 'Ngày ghi danh',
@@ -163,7 +168,11 @@ const CourseEnrollmentDetailPage: React.FC = () => {
           columns={columns}
           rowKey="enrollmentId"
           loading={loading}
-          pagination={{ pageSize: 20 }}
+          pagination={{ 
+            pageSize: 20, 
+            total: totalRecords,
+            showTotal: (total) => <span className="font-medium text-gray-500">Tổng cộng {total} ghi danh</span> 
+          }}
           scroll={{ x: 1000 }}
           locale={{ emptyText: 'Chưa có học viên nào ghi danh khóa học này.' }}
         />
