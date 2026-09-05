@@ -55,8 +55,10 @@ const CourseStudioPage: React.FC = () => {
       const res = await instructorCertificateApi.getTemplate(actualCourseId);
       setTemplateData(res);
     } catch (error: any) {
-      if (error.response?.status !== 404) {
-        // Bỏ qua lỗi 404 vì đơn giản là khóa học chưa có template
+      const status = error.response?.status;
+      const errorCode = error.response?.data?.code;
+      
+      if (status !== 404 && errorCode !== 'CERTIFICATE_NOT_FOUND') {
         messageApi.error('Lỗi khi tải mẫu chứng chỉ.');
       }
       setTemplateData(null);
