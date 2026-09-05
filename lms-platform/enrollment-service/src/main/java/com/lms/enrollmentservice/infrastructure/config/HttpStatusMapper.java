@@ -61,6 +61,9 @@ public final class HttpStatusMapper {
 
         STATUS_MAP.put(ErrorCode.INVALID_TOKEN, HttpStatus.UNAUTHORIZED);
         STATUS_MAP.put(ErrorCode.TOKEN_EXPIRED, HttpStatus.UNAUTHORIZED);
+
+        // ===== CERTIFICATE =====
+        STATUS_MAP.put(ErrorCode.CERTIFICATE_NOT_FOUND, HttpStatus.NOT_FOUND);
     }
 
     public static HttpStatus getStatus(ErrorCode errorCode) {
