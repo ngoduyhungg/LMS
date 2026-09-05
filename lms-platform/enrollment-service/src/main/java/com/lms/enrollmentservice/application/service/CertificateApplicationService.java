@@ -78,7 +78,9 @@ public class CertificateApplicationService implements ManageCertificateUseCase, 
                 fullName,
                 summary.title(),
                 certCode,
-                issueDate
+                issueDate,
+                certificateTemplate.getTemplateUrl(),
+                certificateTemplate.getTitle()
         );
 
         // 11. Generate PDF
@@ -149,6 +151,37 @@ public class CertificateApplicationService implements ManageCertificateUseCase, 
         if (userCertificateRepository.existsByEnrollmentId(enrollmentId)) {
             userCertificateRepository.deleteByEnrollmentId(enrollmentId);
         }
+    }
+    @Override
+    @Transactional(readOnly = true)
+    public Certificate getCertificateTemplate(Long courseId, String currentUserId) {
+        CourseReference reference = courseReferenceRepository.findByCourseId(courseId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.COURSE_NOT_FOUND));
+
+        if (!reference.getInstructorId().equals(currentUserId)) {
+            throw new BusinessException(ErrorCode.ACCESS_DENIED);
+        }
+
+        return certificateRepository.findByCourseId(courseId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.CERTIFICATE_NOT_FOUND));
+    }
+
+    @Override
+    @Transactional
+    public void deleteCertificateTemplate(Long courseId, String currentUserId) {
+        CourseReference reference = courseReferenceRepository.findByCourseId(courseId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.COURSE_NOT_FOUND));
+
+        if (!reference.getInstructorId().equals(currentUserId)) {
+            throw new BusinessException(ErrorCode.ACCESS_DENIED);
+        }
+
+        Certificate certificate = certificateRepository.findByCourseId(courseId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.CERTIFICATE_NOT_FOUND));
+        if (userCertificateRepository.existsByCertificateId(certificate.getId())) {
+            throw new BusinessException(ErrorCode.COURSE_INVALID_STATUS);
+        }
+        certificateRepository.delete(certificate);
     }
 
 }

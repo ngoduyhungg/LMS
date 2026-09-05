@@ -12,4 +12,5 @@ public interface UserCertificateRepositoryPort {
     List<UserCertificate> findByUserId(String userId);
     void deleteByEnrollmentId(Long enrollmentId);
     Optional<UserCertificate> findByCertificateCode(String certificateCode);
+    boolean existsByCertificateId(Long certificateId);
 }

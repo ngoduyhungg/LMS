@@ -6,4 +6,5 @@ import java.util.Optional;
 public interface CertificateRepositoryPort {
     Certificate save(Certificate certificate);
     Optional<Certificate> findByCourseId(Long courseId);
+    void delete(Certificate certificate);
 }

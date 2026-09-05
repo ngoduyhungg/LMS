@@ -6,5 +6,7 @@ public record CertificateDocumentModel(
         String studentName,
         String courseTitle,
         String certificateCode,
-        LocalDate issueDate
+        LocalDate issueDate,
+        String templateUrl,
+        String templateTitle
 ) {}

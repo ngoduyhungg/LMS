@@ -49,4 +49,8 @@ public class UserCertificatePersistenceAdapter implements UserCertificateReposit
         return repository.findByCertificateCode(certificateCode)
                 .map(mapper::toDomain);
     }
+    @Override
+    public boolean existsByCertificateId(Long certificateId) {
+        return repository.existsByCertificateId(certificateId);
+    }
 }

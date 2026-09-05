@@ -33,4 +33,21 @@ public class InstructorCertificateController {
 
         return ResponseEntity.ok(restMapper.toResponse(certificate));
     }
+    @GetMapping("/{courseId}/certificate-template")
+    @PreAuthorize("hasRole('INSTRUCTOR')")
+    public ResponseEntity<CertificateTemplateResponse> getCertificateTemplate(
+            @PathVariable Long courseId) {
+        String currentUserId = SecurityUtils.getCurrentUserId();
+        Certificate certificate = manageCertificateTemplateUseCase.getCertificateTemplate(courseId, currentUserId);
+        return ResponseEntity.ok(restMapper.toResponse(certificate));
+    }
+
+    @DeleteMapping("/{courseId}/certificate-template")
+    @PreAuthorize("hasRole('INSTRUCTOR')")
+    public ResponseEntity<Void> deleteCertificateTemplate(
+            @PathVariable Long courseId) {
+        String currentUserId = SecurityUtils.getCurrentUserId();
+        manageCertificateTemplateUseCase.deleteCertificateTemplate(courseId, currentUserId);
+        return ResponseEntity.noContent().build();
+    }
 }

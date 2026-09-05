@@ -26,4 +26,10 @@ public class CertificatePersistenceAdapter implements CertificateRepositoryPort 
         var savedEntity = repository.save(entity);
         return mapper.toDomain(savedEntity);
     }
+    @Override
+    public void delete(Certificate certificate) {
+        if (certificate != null && certificate.getId() != null) {
+            repository.deleteById(certificate.getId());
+        }
+    }
 }

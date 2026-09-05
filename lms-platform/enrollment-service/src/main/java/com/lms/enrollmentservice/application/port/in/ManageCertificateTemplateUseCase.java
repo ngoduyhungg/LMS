@@ -5,4 +5,6 @@ import com.lms.enrollmentservice.domain.model.Certificate;
 
 public interface ManageCertificateTemplateUseCase {
     Certificate upsertCertificateTemplate(UpsertCertificateCommand command);
+    Certificate getCertificateTemplate(Long courseId, String currentUserId);
+    void deleteCertificateTemplate(Long courseId, String currentUserId);
 }

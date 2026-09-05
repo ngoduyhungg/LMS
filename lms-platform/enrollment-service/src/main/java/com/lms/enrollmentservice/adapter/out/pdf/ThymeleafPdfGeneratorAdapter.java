@@ -25,6 +25,8 @@ public class ThymeleafPdfGeneratorAdapter implements PdfGeneratorPort {
         try {
             Context context = new Context();
             context.setVariable("model", model);
+            context.setVariable("templateUrl", model.templateUrl());
+            context.setVariable("templateTitle", model.templateTitle());
             String htmlContent = templateEngine.process("certificate-template", context);
 
             try (ByteArrayOutputStream os = new ByteArrayOutputStream()) {

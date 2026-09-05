@@ -12,4 +12,5 @@ public interface UserCertificateJpaRepository extends JpaRepository<UserCertific
     List<UserCertificateJpaEntity> findByUserId(String userId);
     void deleteByEnrollmentId(Long enrollmentId);
     Optional<UserCertificateJpaEntity> findByCertificateCode(String certificateCode);
+    boolean existsByCertificateId(Long certificateId);
 }
