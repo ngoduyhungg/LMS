@@ -3,7 +3,6 @@ import type { Certificate } from '../types/certificate-type';
 
 export const certificateApi = {
   getMyCertificates: async (): Promise<Certificate[]> => {
-    // Contract: Không có ApiResponse wrapper
     const res = await axiosClient.get('/api/certificates/me');
     return res.data;
   },
@@ -16,5 +15,25 @@ export const certificateApi = {
     document.body.appendChild(link);
     link.click();
     link.remove();
+  }
+};
+export const instructorCertificateApi = {
+  getTemplate: async (courseId: string | number) => {
+    const res = await axiosClient.get(`/api/instructor/courses/${courseId}/certificate-template`);
+    return res.data;
+  },
+  
+  uploadTemplate: async (courseId: string | number, file: File) => {
+    const formData = new FormData();
+    formData.append('file', file);
+    const res = await axiosClient.post(`/api/instructor/courses/${courseId}/certificate-template`, formData, {
+      headers: { 'Content-Type': 'multipart/form-data' }
+    });
+    return res.data;
+  },
+
+  deleteTemplate: async (courseId: string | number) => {
+    const res = await axiosClient.delete(`/api/instructor/courses/${courseId}/certificate-template`);
+    return res.data;
   }
 };

@@ -14,15 +14,21 @@ const MyCertificatesPage: React.FC = () => {
 
   useEffect(() => {
     const fetchCertificates = async () => {
-      try {
-        const data = await certificateApi.getMyCertificates();
-        setCertificates(Array.isArray(data) ? data : []);
-      } catch (error) {
+    try {
+      setLoading(true);
+      const data = await certificateApi.getMyCertificates();
+      setCertificates(Array.isArray(data) ? data : []);
+    } catch (error: any) {
+      // HOTFIX UX: Nếu là lỗi 403 (Không có quyền), chỉ đơn giản là hiện danh sách rỗng, không báo lỗi đỏ
+      if (error.response?.status !== 403) {
         console.error('Lỗi tải chứng chỉ:', error);
-      } finally {
-        setLoading(false);
+        // Có thể gọi messageApi.error() ở đây nếu cần
       }
-    };
+      setCertificates([]); // Gán mảng rỗng để hiện component Empty
+    } finally {
+      setLoading(false);
+    }
+  };
     fetchCertificates();
   }, []);
 

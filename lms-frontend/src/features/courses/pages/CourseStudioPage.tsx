@@ -1,9 +1,12 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Tabs, Button, Card, Form, Input, Select, InputNumber, message, Spin, Typography, Space, Popconfirm, Modal, Tag, Row, Col, Empty } from 'antd';
-import { ArrowLeftOutlined, SaveOutlined, SendOutlined, PlusOutlined, DeleteOutlined, EditOutlined, HolderOutlined } from '@ant-design/icons';
+import { Tabs, Button, Card, Form, Input, Select, InputNumber, message, Spin, Typography, Space, Popconfirm, Modal, Tag, Row, Col, Empty, Upload, Tooltip } from 'antd';
+import { ArrowLeftOutlined, SaveOutlined, SendOutlined, PlusOutlined, DeleteOutlined, EditOutlined, HolderOutlined, UploadOutlined, FileImageOutlined } from '@ant-design/icons';
 import { courseApi, getCategories } from '../api/course-api';
+// HOTFIX: Nhập API Mẫu chứng chỉ vừa tạo
+import { instructorCertificateApi } from '../../certificates/api/certificate-api'; 
 import type { Course, Module, Lesson, ApiError, Category } from '../types/course-type';
+import type { UploadFile } from 'antd/es/upload/interface';
 
 const { Title, Text } = Typography;
 
@@ -27,12 +30,39 @@ const CourseStudioPage: React.FC = () => {
   const [modForm] = Form.useForm();
   const [lessForm] = Form.useForm();
 
+  // STATE CHO MẪU CHỨNG CHỈ (UI-6)
+  const [templateLoading, setTemplateLoading] = useState(false);
+  const [templateData, setTemplateData] = useState<{ id: string, fileUrl: string, createdAt: string } | null>(null);
+  const [uploadFileList, setUploadFileList] = useState<UploadFile[]>([]);
+  // DTO Admin/Instructor Course Summary có thể trả về completedCount. Giả lập nếu không có sẵn, mặc định là 0.
+  const [completedCount, setCompletedCount] = useState<number>(0); 
+
   const loadCourseInfo = async () => {
     if (!routeParam) return null;
     const courseRes = await courseApi.getDetail(routeParam);
     const courseData = courseRes.data || courseRes;
     setCourse(courseData);
+    
+    // Nếu API CourseDetail có trả về số lượng hoàn thành, ta lấy ra để xử lý vô hiệu hóa sớm nút Xóa
+    setCompletedCount(courseData.completedCount || 0);
+
     return courseData.id; 
+  };
+
+  const loadCertificateTemplate = async (actualCourseId: string) => {
+    setTemplateLoading(true);
+    try {
+      const res = await instructorCertificateApi.getTemplate(actualCourseId);
+      setTemplateData(res);
+    } catch (error: any) {
+      if (error.response?.status !== 404) {
+        // Bỏ qua lỗi 404 vì đơn giản là khóa học chưa có template
+        messageApi.error('Lỗi khi tải mẫu chứng chỉ.');
+      }
+      setTemplateData(null);
+    } finally {
+      setTemplateLoading(false);
+    }
   };
 
   const reloadCurriculum = async (actualCourseId: string) => {
@@ -60,6 +90,7 @@ const CourseStudioPage: React.FC = () => {
             setCategories(catData.map((c: Category) => ({ label: c.name, value: String(c.id) }))); 
           }
           await reloadCurriculum(actualId); 
+          await loadCertificateTemplate(actualId);
         }
       } catch (error: unknown) {
         const apiError = error as ApiError;
@@ -243,6 +274,47 @@ const CourseStudioPage: React.FC = () => {
     }
   };
 
+  // ===============================================
+  // UI-6: XỬ LÝ TEMPLATE CHỨNG CHỈ (UPLOAD & DELETE)
+  // ===============================================
+  const handleUploadTemplate = async () => {
+    if (!uploadFileList[0] || !course) return;
+    try {
+      setTemplateLoading(true);
+      const fileToUpload = uploadFileList[0].originFileObj as File;
+      await instructorCertificateApi.uploadTemplate(course.id, fileToUpload);
+      messageApi.success('Đã tải lên Mẫu chứng chỉ thành công!');
+      setUploadFileList([]);
+      await loadCertificateTemplate(course.id);
+    } catch (error: any) {
+      messageApi.error(error.response?.data?.message || 'Lỗi khi tải mẫu chứng chỉ.');
+    } finally {
+      setTemplateLoading(false);
+    }
+  };
+
+  const handleDeleteTemplate = async () => {
+    if (!course) return;
+    try {
+      setTemplateLoading(true);
+      await instructorCertificateApi.deleteTemplate(course.id);
+      messageApi.success('Đã xóa Mẫu chứng chỉ.');
+      setTemplateData(null);
+    } catch (error: any) {
+      messageApi.destroy();
+      // LOGIC XỬ LÝ THEO UPDATE NGHIỆP VỤ CỦA BACKEND & PO
+      if (error.response?.data?.errorCode === 'COURSE_INVALID_STATUS' || error.response?.data?.code === 'COURSE_INVALID_STATUS') {
+        messageApi.warning(
+          'Không thể xóa Mẫu chứng chỉ vì đã có học viên được cấp bằng. Bạn chỉ có thể Cập nhật mẫu mới.'
+        );
+      } else {
+        messageApi.error(error.response?.data?.message || 'Lỗi hệ thống khi xóa mẫu chứng chỉ.');
+      }
+    } finally {
+      setTemplateLoading(false);
+    }
+  };
+
   if (initialLoading) return <div className="flex h-screen items-center justify-center"><Spin size="large" /></div>;
   if (!course) return <Empty description="Không tìm thấy khóa học" className="mt-20" />;
 
@@ -387,6 +459,102 @@ const CourseStudioPage: React.FC = () => {
                         </Button>
                       </Card>
                     ))}
+                  </div>
+                )}
+              </div>
+            )
+          },
+          // ==================================
+          // TAB MỚI: MẪU CHỨNG CHỈ (UI-6)
+          // ==================================
+          {
+            key: 'certificate',
+            label: 'Mẫu chứng chỉ',
+            children: (
+              <div className="mt-4 flex flex-col items-start gap-6 relative">
+                {templateLoading && (
+                  <div className="absolute inset-0 bg-white/70 z-10 flex items-center justify-center rounded-lg">
+                    <Spin />
+                  </div>
+                )}
+                
+                <div className="flex flex-col">
+                  <Title level={5}>Cấu hình Chứng chỉ Khóa học</Title>
+                  <Text type="secondary">Tải lên hình ảnh mẫu (JPG/PNG) làm phôi chứng chỉ. Hệ thống sẽ tự động in tên học viên vào giữa ảnh này.</Text>
+                </div>
+
+                {templateData ? (
+                  <div className="w-full p-4 border border-blue-100 bg-blue-50/30 rounded-xl flex flex-col md:flex-row gap-6 items-start">
+                    <div className="w-full max-w-sm rounded-lg overflow-hidden border border-gray-200 shadow-sm bg-white">
+                      <img src={templateData.fileUrl} alt="Certificate Template" className="w-full h-auto object-cover" />
+                    </div>
+                    <div className="flex flex-col items-start gap-3 flex-1">
+                      <Tag color="blue" icon={<FileImageOutlined />}>Đã cấu hình mẫu chứng chỉ</Tag>
+                      <Text type="secondary" className="text-xs">
+                        Ngày tạo: {new Date(templateData.createdAt).toLocaleString('vi-VN')}
+                      </Text>
+                      
+                      <div className="mt-4 flex gap-3">
+                        <Upload 
+                          beforeUpload={() => false} // Không upload tự động
+                          maxCount={1}
+                          accept="image/png, image/jpeg"
+                          fileList={uploadFileList}
+                          onChange={(info) => setUploadFileList(info.fileList)}
+                          showUploadList={false}
+                        >
+                          <Button icon={<UploadOutlined />}>Đổi mẫu khác</Button>
+                        </Upload>
+                        
+                        {/* Logic UX Fail-fast: Disable sẵn nút nếu đã có người học xong */}
+                        <Tooltip title={completedCount > 0 ? "Không thể xóa vì đã có người được cấp chứng chỉ này" : ""}>
+                          <Popconfirm
+                            title="Xóa mẫu chứng chỉ?"
+                            description="Bạn có chắc muốn xóa phôi chứng chỉ này không?"
+                            onConfirm={handleDeleteTemplate}
+                            okText="Đồng ý Xóa"
+                            cancelText="Đóng"
+                            okButtonProps={{ danger: true }}
+                            disabled={completedCount > 0}
+                          >
+                            <Button danger icon={<DeleteOutlined />} disabled={completedCount > 0}>
+                              Xóa mẫu
+                            </Button>
+                          </Popconfirm>
+                        </Tooltip>
+                      </div>
+
+                      {uploadFileList.length > 0 && (
+                        <div className="mt-2 flex items-center gap-2 p-2 bg-yellow-50 border border-yellow-200 rounded">
+                          <Text className="text-sm">Đã chọn ảnh mới: {uploadFileList[0].name}</Text>
+                          <Button type="primary" size="small" onClick={handleUploadTemplate}>Lưu ảnh mới</Button>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                ) : (
+                  <div className="w-full p-8 border-2 border-dashed border-gray-200 rounded-xl flex flex-col items-center justify-center bg-gray-50 text-center">
+                    <FileImageOutlined className="text-4xl text-gray-300 mb-3" />
+                    <Title level={5} className="text-gray-600 m-0">Chưa có mẫu chứng chỉ</Title>
+                    <Text type="secondary" className="mb-4">Học viên sẽ không nhận được chứng chỉ sau khi hoàn thành khóa học này.</Text>
+                    
+                    <Upload 
+                      beforeUpload={() => false}
+                      maxCount={1}
+                      accept="image/png, image/jpeg"
+                      fileList={uploadFileList}
+                      onChange={(info) => setUploadFileList(info.fileList)}
+                      showUploadList={false}
+                    >
+                      <Button type="primary" icon={<UploadOutlined />}>Tải ảnh mẫu lên (JPG/PNG)</Button>
+                    </Upload>
+                    
+                    {uploadFileList.length > 0 && (
+                      <div className="mt-4 flex items-center gap-2">
+                        <Text strong>{uploadFileList[0].name}</Text>
+                        <Button type="primary" onClick={handleUploadTemplate}>Xác nhận tải lên</Button>
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
