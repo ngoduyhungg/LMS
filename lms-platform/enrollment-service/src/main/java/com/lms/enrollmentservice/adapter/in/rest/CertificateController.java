@@ -29,7 +29,7 @@ public class CertificateController {
     private final DownloadCertificateUseCase downloadCertificateUseCase;
 
     @GetMapping("/me")
-    @PreAuthorize("hasRole('STUDENT')")
+    @PreAuthorize("hasAnyRole('STUDENT', 'INSTRUCTOR')")
     public ResponseEntity<List<UserCertificateResponse>> getMyCertificates() {
         String currentUserId = SecurityUtils.getCurrentUserId();
         List<UserCertificate> certificates = getCertificateUseCase.getMyCertificates(currentUserId);
